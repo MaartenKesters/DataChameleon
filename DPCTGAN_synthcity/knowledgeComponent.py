@@ -1,4 +1,5 @@
 from privacyLevel import PrivacyLevels, RequirementLevels, EvaluationLevels
+from privacyLevelMetric import PrivacyLevelMetric
 
 class KnowledgeComponent():
     """
@@ -8,16 +9,61 @@ class KnowledgeComponent():
         
     """
 
-    def __init__(self):
-        ## mapping between privacy levels and requirement metrics
-        # TODO requirements metrics
-        self.requirement_metric_mapping = {RequirementLevels.LOW : PrivacyLevels.LOW, RequirementLevels.MEDIUM : PrivacyLevels.MEDIUM, RequirementLevels.HIGH : PrivacyLevels.HIGH, RequirementLevels.SECRET : PrivacyLevels.SECRET}
-        ## mapping between privacy levels and evaluation metrics
-        # TODO evaluation metrics
-        self.evaluation_metric_mapping = {EvaluationLevels.LOW : PrivacyLevels.LOW, EvaluationLevels.MEDIUM : PrivacyLevels.MEDIUM, EvaluationLevels.HIGH : PrivacyLevels.HIGH, EvaluationLevels.SECRET : PrivacyLevels.SECRET}
+    def __init__(self, metric = PrivacyLevelMetric):
+        self.privacy_level_metric = metric
 
-    def level_by_requirement(self, requirement_level):
-        return self.requirement_metric_mapping.get(requirement_level)
+    def level_by_requirement(self, value):
+        if self.privacy_level_metric.comparison():
+            if value < self.privacy_level_metric.borders()[0]:
+                return PrivacyLevels.LOW
+            elif value < self.privacy_level_metric.borders()[1]:
+                return PrivacyLevels.MEDIUM
+            elif value < self.privacy_level_metric.borders()[2]:
+                return PrivacyLevels.HIGH
+            elif value >= self.privacy_level_metric.borders()[2]:
+                return PrivacyLevels.SECRET
+        else:
+            if value >= self.privacy_level_metric.borders()[0]:
+                return PrivacyLevels.LOW
+            elif value >= self.privacy_level_metric.borders()[1]:
+                return PrivacyLevels.MEDIUM
+            elif value >= self.privacy_level_metric.borders()[2]:
+                return PrivacyLevels.HIGH
+            elif value < self.privacy_level_metric.borders()[2]:
+                return PrivacyLevels.SECRET
+        # if value >= EvaluationLevels.LOW_MEDIUM.border_value:
+        #     return PrivacyLevels.LOW
+        # elif value >= EvaluationLevels.MEDIUM_HIGH.border_value:
+        #     return PrivacyLevels.MEDIUM
+        # elif value >= EvaluationLevels.HIGH_SECRET.border_value:
+        #     return PrivacyLevels.HIGH
+        # elif value < EvaluationLevels.HIGH_SECRET.border_value:
+        #     return PrivacyLevels.SECRET
     
-    def level_by_evaluation(self, evaluation_level):
-        return self.evaluation_metric_mapping.get(evaluation_level)
+    def level_by_evaluation(self, value):
+        if self.privacy_level_metric.comparison():
+            if value < self.privacy_level_metric.borders()[0]:
+                return PrivacyLevels.LOW
+            elif value < self.privacy_level_metric.borders()[1]:
+                return PrivacyLevels.MEDIUM
+            elif value < self.privacy_level_metric.borders()[2]:
+                return PrivacyLevels.HIGH
+            elif value >= self.privacy_level_metric.borders()[2]:
+                return PrivacyLevels.SECRET
+        else:
+            if value >= self.privacy_level_metric.borders()[0]:
+                return PrivacyLevels.LOW
+            elif value >= self.privacy_level_metric.borders()[1]:
+                return PrivacyLevels.MEDIUM
+            elif value >= self.privacy_level_metric.borders()[2]:
+                return PrivacyLevels.HIGH
+            elif value < self.privacy_level_metric.borders()[2]:
+                return PrivacyLevels.SECRET
+        # if value >= EvaluationLevels.LOW_MEDIUM.border_value:
+        #     return PrivacyLevels.LOW
+        # elif value >= EvaluationLevels.MEDIUM_HIGH.border_value:
+        #     return PrivacyLevels.MEDIUM
+        # elif value >= EvaluationLevels.HIGH_SECRET.border_value:
+        #     return PrivacyLevels.HIGH
+        # elif value < EvaluationLevels.HIGH_SECRET.border_value:
+        #     return PrivacyLevels.SECRET

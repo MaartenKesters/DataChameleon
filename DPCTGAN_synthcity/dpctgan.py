@@ -20,7 +20,7 @@ from synthcity.plugins.core.distribution import (
     FloatDistribution,
     IntegerDistribution,
 )
-from synthcity.plugins.core.models.tabular_gan import TabularGAN
+# from synthcity.plugins.core.models.tabular_gan import TabularGAN
 # from synthcity.plugins.core.plugin import Plugin
 from synthcity.plugins.core.schema import Schema
 from synthcity.utils.constants import DEVICE
@@ -29,6 +29,7 @@ from sklearn.datasets import load_diabetes
 
 from privacyLevel import PrivacyLevels
 from plugin import Plugin
+from tabular_gan import TabularGAN
 
 
 class DPCTGANPlugin(Plugin):
@@ -196,7 +197,7 @@ class DPCTGANPlugin(Plugin):
         self.n_iter_print = n_iter_print
 
         # privacy
-        self.dp_epsilon = epsilon
+        self.dp_epsilon = privacy_level.epsilon
         self.dp_delta = delta
         self.dp_enabled = True
         self.dp_max_grad_norm = dp_max_grad_norm
@@ -303,6 +304,15 @@ class DPCTGANPlugin(Plugin):
         self.model.fit(X.dataframe(), cond=cond)
 
         return self
+    
+    def _update(self, X: DataLoader, increase_privacy: bool = False, *args: Any, **kwargs: Any) -> "DPCTGANPlugin":
+        cond: Optional[Union[pd.DataFrame, pd.Series]] = None
+        if "cond" in kwargs:
+            cond = self._prepare_cond(kwargs["cond"])
+
+        self.model.fit(X.dataframe(), cond=cond, increase_privacy=increase_privacy)
+
+        return self
 
     def _generate(self, count: int, syn_schema: Schema, **kwargs: Any) -> DataLoader:
         cond: Optional[Union[pd.DataFrame, pd.Series]] = None
@@ -310,6 +320,9 @@ class DPCTGANPlugin(Plugin):
             cond = self._prepare_cond(kwargs["cond"])
 
         return self._safe_generate(self.model.generate, count, syn_schema, cond=cond)
+    
+    def get_epsilon(self) -> float:
+        return self.dp_epsilon
 
 
 # pluGANPlugin
