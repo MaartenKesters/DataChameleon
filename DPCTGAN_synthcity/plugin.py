@@ -179,6 +179,10 @@ class Plugin(Serializable, metaclass=ABCMeta):
     
     def get_privacy_level(self) -> PrivacyLevels:
         return self.privacy_level
+    
+    @abstractmethod
+    def get_privacy_budget(self) -> float:
+        ...
 
     @validate_arguments(config=dict(arbitrary_types_allowed=True))
     def fit(self, X: Union[DataLoader, pd.DataFrame], *args: Any, **kwargs: Any) -> Any:

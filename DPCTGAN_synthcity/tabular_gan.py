@@ -332,7 +332,7 @@ class TabularGAN(torch.nn.Module):
         fake_labels_generator: Optional[Callable] = None,
         true_labels_generator: Optional[Callable] = None,
         encoded: bool = False,
-        increase_privacy: bool = False,
+        update: bool = False,
     ) -> Any:
         # preprocessing
         if encoded:
@@ -362,7 +362,7 @@ class TabularGAN(torch.nn.Module):
             np.asarray(cond),
             fake_labels_generator=fake_labels_generator,
             true_labels_generator=true_labels_generator,
-            increase_privacy=increase_privacy,
+            update=update,
         )
 
         # post processing
@@ -461,3 +461,6 @@ class TabularGAN(torch.nn.Module):
             return np.ones(prob_mat.shape[-1]) / prob_mat.shape[-1]
 
         return np.exp(res.x) / np.sum(np.exp(res.x))
+    
+    def get_privacy_budget(self) -> float:
+        return self.model.get_privacy_budget()

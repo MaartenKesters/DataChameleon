@@ -249,18 +249,19 @@ class GAN(nn.Module):
         self.dp_max_grad_norm = dp_max_grad_norm
         self.dp_secure_mode = dp_secure_mode
 
-        print('here gan')
-
         if self.dp_enabled:
             self.privacy_engine = PrivacyEngine(secure_mode=self.dp_secure_mode)
 
+    def get_privacy_budget(self) -> float:
+        return self.privacy_engine.get_epsilon(self.dp_delta)
+    
     def fit(
         self,
         X: np.ndarray,
         cond: Optional[np.ndarray] = None,
         fake_labels_generator: Optional[Callable] = None,
         true_labels_generator: Optional[Callable] = None,
-        increase_privacy: bool = False,
+        update: bool = False,
     ) -> "GAN":
         clear_cache()
 
@@ -288,7 +289,7 @@ class GAN(nn.Module):
             condt,
             fake_labels_generator=fake_labels_generator,
             true_labels_generator=true_labels_generator,
-            increase_privacy=increase_privacy,
+            update=update,
         )
 
         return self
@@ -585,7 +586,7 @@ class GAN(nn.Module):
         cond: Optional[torch.Tensor] = None,
         fake_labels_generator: Optional[Callable] = None,
         true_labels_generator: Optional[Callable] = None,
-        increase_privacy: bool = False,
+        update: bool = False,
     ) -> "GAN":
         self._original_cond = cond
 
@@ -600,44 +601,37 @@ class GAN(nn.Module):
             if self.dp_delta is None:
                 self.dp_delta = 1 / len(X)
 
-            print('gan train ' + str(increase_privacy))
-
             if self.privacy_engine == None:
-                print('gan train privacy engine None')
                 self.privacy_engine = PrivacyEngine(secure_mode=self.dp_secure_mode)
+            
+            if update:
+                print('---increase privacy---')
+                print('old Privacy budget: ' + str(self.privacy_engine.get_epsilon(self.dp_delta)))
+                g_loss, d_loss = self._train_epoch(
+                    self.data_loader,
+                    fake_labels_generator=fake_labels_generator,
+                    true_labels_generator=true_labels_generator,
+                )
+                print('updated Privacy budget: ' + str(self.privacy_engine.get_epsilon(self.dp_delta)))
+                print('---increase done---')
+                return self
+            
+            (
+                self.discriminator,
+                self.discriminator.optimizer,
+                loader,
+            ) = self.privacy_engine.make_private_with_epsilon(
+                module=self.discriminator,
+                optimizer=self.discriminator.optimizer,
+                data_loader=loader,
+                epochs=self.generator_n_iter,
+                target_epsilon=self.dp_epsilon,
+                target_delta=self.dp_delta,
+                max_grad_norm=self.dp_max_grad_norm,
+                poisson_sampling=False,
+            )
 
-            if not increase_privacy:
-                (
-                    self.discriminator,
-                    self.discriminator.optimizer,
-                    loader,
-                ) = self.privacy_engine.make_private_with_epsilon(
-                    module=self.discriminator,
-                    optimizer=self.discriminator.optimizer,
-                    data_loader=loader,
-                    epochs=self.generator_n_iter,
-                    target_epsilon=self.dp_epsilon,
-                    target_delta=self.dp_delta,
-                    max_grad_norm=self.dp_max_grad_norm,
-                    poisson_sampling=False,
-                )
-            else:
-                print(self.privacy_engine.get_epsilon(self.dp_delta))
-                (
-                    self.discriminator,
-                    self.discriminator.optimizer,
-                    loader,
-                ) = self.privacy_engine.make_private_with_epsilon(
-                    module=self.discriminator,
-                    optimizer=self.discriminator.optimizer,
-                    data_loader=loader,
-                    epochs=self.generator_n_iter,
-                    # target_epsilon=self.dp_epsilon,
-                    target_epsilon=1,
-                    target_delta=self.dp_delta,
-                    max_grad_norm=self.dp_max_grad_norm,
-                    poisson_sampling=False,
-                )
+        self.data_loader = loader
 
         # Train loop
         patience_score = self._init_patience_score()
@@ -645,8 +639,12 @@ class GAN(nn.Module):
         best_state_dict = None
 
         for i in tqdm(range(self.generator_n_iter)):
+            try:
+                print(" Current Privacy budget: " + str(self.privacy_engine.get_epsilon(self.dp_delta)))
+            except:
+                pass
             g_loss, d_loss = self._train_epoch(
-                loader,
+                self.data_loader,
                 fake_labels_generator=fake_labels_generator,
                 true_labels_generator=true_labels_generator,
             )
@@ -674,7 +672,7 @@ class GAN(nn.Module):
         if best_state_dict is not None:
             self.load_state_dict(best_state_dict)
 
-        if increase_privacy:
+        if update:
             print(self.privacy_engine.get_epsilon(self.dp_delta))
 
         return self

@@ -301,16 +301,17 @@ class DPCTGANPlugin(Plugin):
             n_iter_min=self.n_iter_min,
             n_iter_print=self.n_iter_print,
         )
+        print("---Start training model with epsilon value: " + str(self.dp_epsilon) + "---")
         self.model.fit(X.dataframe(), cond=cond)
 
         return self
     
-    def _update(self, X: DataLoader, increase_privacy: bool = False, *args: Any, **kwargs: Any) -> "DPCTGANPlugin":
+    def _update(self, X: DataLoader, *args: Any, **kwargs: Any) -> "DPCTGANPlugin":
         cond: Optional[Union[pd.DataFrame, pd.Series]] = None
         if "cond" in kwargs:
             cond = self._prepare_cond(kwargs["cond"])
 
-        self.model.fit(X.dataframe(), cond=cond, increase_privacy=increase_privacy)
+        self.model.fit(X.dataframe(), cond=cond, update=True)
 
         return self
 
@@ -323,6 +324,9 @@ class DPCTGANPlugin(Plugin):
     
     def get_epsilon(self) -> float:
         return self.dp_epsilon
+    
+    def get_privacy_budget(self) -> float:
+        return self.model.get_privacy_budget()
 
 
 # pluGANPlugin
