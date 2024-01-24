@@ -30,6 +30,7 @@ from sklearn.datasets import load_diabetes
 from privacyLevel import PrivacyLevels
 from plugin import Plugin
 from tabular_gan import TabularGAN
+from synthcity.plugins.core.models.tabular_encoder import TabularEncoder
 
 
 class DPCTGANPlugin(Plugin):
@@ -110,7 +111,7 @@ class DPCTGANPlugin(Plugin):
     @validate_arguments(config=dict(arbitrary_types_allowed=True))
     def __init__(
         self,
-        n_iter: int = 10,
+        n_iter: int = 20,
         generator_n_layers_hidden: int = 2,
         generator_n_units_hidden: int = 500,
         generator_nonlin: str = "relu",
@@ -256,6 +257,9 @@ class DPCTGANPlugin(Plugin):
         if "cond" in kwargs:
             cond = self._prepare_cond(kwargs["cond"])
 
+        # encoder
+        self.encoder = TabularEncoder().fit(X.dataframe())
+
         self.model = TabularGAN(
             X.dataframe(),
             cond=cond,
@@ -327,6 +331,9 @@ class DPCTGANPlugin(Plugin):
     
     def get_privacy_budget(self) -> float:
         return self.model.get_privacy_budget()
+    
+    def get_encoder(self):
+        return self.encoder
 
 
 # pluGANPlugin

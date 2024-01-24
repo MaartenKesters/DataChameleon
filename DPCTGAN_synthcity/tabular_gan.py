@@ -391,6 +391,29 @@ class TabularGAN(torch.nn.Module):
         cond: Optional[Union[pd.DataFrame, pd.Series, np.ndarray]] = None,
     ) -> pd.DataFrame:
         samples = self(count, cond)
+
+        # print('tabular encoder number of features:')
+        # print(self.encoder.n_features())
+
+        # print('samples')
+        # print(pd.DataFrame(samples))
+        # print('decode')
+        # samples = self.decode(pd.DataFrame(samples))
+        # print(pd.DataFrame(samples))
+        # print('encode')
+        # samples = self.encode(pd.DataFrame(samples))
+        # print(pd.DataFrame(samples))
+        # # print('decode')
+        # # samples = self.decode(samples)
+        # # print(samples)
+        
+        # print('samples / 2')
+        # samples = 0.5 * samples
+        # print(samples)
+        # print('decode')
+        # samples = self.decode(samples)
+        # print(pd.DataFrame(samples))
+        
         return self.decode(pd.DataFrame(samples))
 
     def forward(

@@ -184,6 +184,10 @@ class Plugin(Serializable, metaclass=ABCMeta):
     def get_privacy_budget(self) -> float:
         ...
 
+    @abstractmethod
+    def get_encoder(self):
+        ...
+
     @validate_arguments(config=dict(arbitrary_types_allowed=True))
     def fit(self, X: Union[DataLoader, pd.DataFrame], *args: Any, **kwargs: Any) -> Any:
         """Training method the synthetic data plugin.
