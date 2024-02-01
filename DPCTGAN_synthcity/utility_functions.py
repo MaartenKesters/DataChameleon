@@ -13,22 +13,22 @@ def utility(data):
     print("Testing utility of synthetic data...")
     return True
 
-def inverseKLDivergenceMetric(real_data, syn_data):
+def inverseKLDivergenceMetric(real_data, syn_data, error):
     evaluator = InverseKLDivergence()
 
-    score = evaluator.evaluate(real_data, syn_data)
-    print('Inverse kL divergence: ' + str(score.get('marginal')))
-    if score.get('marginal') > 0.75:
+    score = evaluator.evaluate(real_data, syn_data).get('marginal')
+    print('Inverse kL divergence: ' + str(score))
+    if score > (0.75 - error):
         return True
     else:
         return False
     
-def kolmogorovSmirnovTestMetric(real_data, syn_data):
+def kolmogorovSmirnovTestMetric(real_data, syn_data, error):
     evaluator = KolmogorovSmirnovTest()
 
     score = evaluator.evaluate(real_data, syn_data)
     print('Kolmogorov Smirnov Test: ' + str(score.get('marginal')))
-    if score.get('marginal') > 0.75:
+    if score.get('marginal') > (0.75 - error):
         return True
     else:
         return False

@@ -257,9 +257,6 @@ class DPCTGANPlugin(Plugin):
         if "cond" in kwargs:
             cond = self._prepare_cond(kwargs["cond"])
 
-        # encoder
-        self.encoder = TabularEncoder().fit(X.dataframe())
-
         self.model = TabularGAN(
             X.dataframe(),
             cond=cond,

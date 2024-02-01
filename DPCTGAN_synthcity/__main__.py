@@ -9,6 +9,7 @@ from synthcity.plugins.core.dataloader import GenericDataLoader
 from sklearn.datasets import load_diabetes, load_iris
 from sklearn.metrics.pairwise import euclidean_distances
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import jaccard_score
 
 from chameleon import Chameleon
 from dpctgan import DPCTGANPlugin
@@ -76,12 +77,18 @@ def main():
     ## Get the adult dataset
     # adult = fetch_ucirepo(id=2)
     # X = adult.data.features 
-    # data = X.sample(n=10000)
+    # data = X.sample(n=1000)
+
+    # data2 = X.sample(n=1000)
+
+    # sim = jaccard_score(data, data2)
+    # print(sim)
 
 
     ## Get the iris dataset
     data, y = load_iris(as_frame=True, return_X_y=True)
     data, test = train_test_split(data, test_size=0.2)
+    
     print(data)
 
 
@@ -114,24 +121,18 @@ def main():
 
 
     ## Generate synthetic data
-    # syn_data = chameleon.generate_synthetic_data("User2", PrivacyLevels.MEDIUM, 1000, privacy_functions.nearestNeighborDistanceMetric, utility_functions.utility)
-    
-    syn_data = chameleon.generate(model1, 1000)
-    syn_data2 = chameleon.generate(model4, 1000)
 
-    # syn = chameleon.increase_privacy(syn_data, model1, privacy_functions.nearestNeighborDistanceMetric)
-    syn = chameleon.increase_utility(syn_data, model1, utility_functions.kolmogorovSmirnovTestMetric)
-    print(syn.dataframe())
+    # syn_data = chameleon.generate_synthetic_data("User2", PrivacyLevels.MEDIUM, 1000, privacy_func=privacy_functions.nearestNeighborDistanceMetric)
+    # print(syn_data)
 
-    # utility_functions.inverseKLDivergenceMetric(data_loader, syn_data)
-    # utility_functions.inverseKLDivergenceMetric(data_loader, syn_data2)
-    # syn_data = chameleon.change_column_frequencies(data_loader, syn_data, PrivacyLevels.LOW)
-    # utility_functions.inverseKLDivergenceMetric(data_loader, syn_data)
+    # syn_data = chameleon.generate_synthetic_data("User2", PrivacyLevels.MEDIUM, 1000, utility_func=utility_functions.inverseKLDivergenceMetric)
+    # print(syn_data)
 
-    # syn_data3 = chameleon.merge_data(syn_data, syn_data2)
+    syn_data = chameleon.generate_synthetic_data("User2", PrivacyLevels.MEDIUM, 1000, privacy_func=privacy_functions.nearestNeighborDistanceMetric, utility_func=utility_functions.inverseKLDivergenceMetric)
+    print(syn_data)
 
-    # chameleon.check_metrics_data(syn_data)
-    # chameleon.check_metrics_data(syn_data2)
+    # syn_data = chameleon.generate_synthetic_data("User2", PrivacyLevels.MEDIUM, 1000)
+    # print(syn_data)
 
 
 if __name__ == '__main__':
