@@ -24,6 +24,9 @@ from ucimlrepo import fetch_ucirepo
 def main():
     chameleon = Chameleon()
 
+    chameleon.handleConfigs()
+    chameleon.handleSynDataRequirements()
+
     chameleon.add_user("User1", True)
     chameleon.add_user("User2", False, PrivacyLevels.LOW)
     chameleon.add_user("User3", False, PrivacyLevels.SECRET)
@@ -128,7 +131,7 @@ def main():
     # syn_data = chameleon.generate_synthetic_data("User2", PrivacyLevels.MEDIUM, 1000, utility_func=utility_functions.inverseKLDivergenceMetric)
     # print(syn_data)
 
-    syn_data = chameleon.generate_synthetic_data("User2", PrivacyLevels.MEDIUM, 1000, privacy_func=privacy_functions.nearestNeighborDistanceMetric, utility_func=utility_functions.inverseKLDivergenceMetric)
+    syn_data = chameleon.generate_synthetic_data("User2", 1000)
     print(syn_data)
 
     # syn_data = chameleon.generate_synthetic_data("User2", PrivacyLevels.MEDIUM, 1000)

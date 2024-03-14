@@ -181,7 +181,19 @@ class Plugin(Serializable, metaclass=ABCMeta):
         return self.privacy_level
     
     @abstractmethod
+    def set_privacy_level(self, level: PrivacyLevels):
+        ...
+    
+    @abstractmethod
     def get_privacy_budget(self) -> float:
+        ...
+
+    @abstractmethod
+    def set_dp_epsilon(self, eps: float):
+        ...
+    
+    @abstractmethod
+    def get_dp_epsilon(self) -> float:
         ...
 
     @abstractmethod
