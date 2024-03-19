@@ -14,6 +14,7 @@ from knowledgeComponent import KnowledgeComponent
 from dataRequest import DataRequest
 from privacyLevelMetric import PrivacyLevelMetric, NearestNeighborDistance, CommonRows, kAnonymity, DataLeakage, DataMismatch, ReIdentification
 from plugin import Plugin
+from dpctgan import DPCTGANPlugin
 
 import os
 import pandas as pd
@@ -24,6 +25,7 @@ import copy
 from sklearn.metrics.pairwise import euclidean_distances
 from sklearn.metrics import jaccard_score
 from importlib import import_module
+import pickle as pickle
 
 import privacy_functions
 
@@ -32,7 +34,7 @@ import privacyKnowledge
 import utilityKnowledge
 from privacyCalculator import PrivacyCalculator
 from utilityCalculator import UtilityCalculator
-import fineTuningMethod
+from evaluationReport import EvaluationReport
 
 
 class Chameleon():
@@ -55,6 +57,7 @@ class Chameleon():
         self.configparser = ConfigHandler()
         self.privacyCalculator = PrivacyCalculator()
         self.utilityCalculator = UtilityCalculator()
+        self.evaluationReport = EvaluationReport()
 
         self.encoder = None
 
@@ -65,14 +68,14 @@ class Chameleon():
         self.column_frequency_error = 0.2
 
         self.handleConfigs()
-        self.handleSynDataRequirements()
-        self.handleMetrics()
-        self.handleFineTuningMethod()
+        
 
     def handleConfigs(self):
-        self.configparser.parseRequirements()
-        self.configparser.parseFineTuningMetrics()
-        self.configparser.parseFineTuningMethod()
+        self.configparser.parseConfigs()
+        self.handleSynDataRequirements()
+        self.handleFineTuningMetrics()
+        self.handleFineTuningMethod()
+        self.handleEvaluationMetrics()
 
     def handleSynDataRequirements(self):
         ## Get privacy level
@@ -100,13 +103,13 @@ class Chameleon():
             self.utilityValueRequirement = float(self.configparser.getUtilityValueRequirement())
         
         ## Get the allow error range around the required privacy and utility values
-        ange = self.configparser.getRange()
+        range = self.configparser.getRange()
         if range == 'none':
             self.requirementRrange = None
         else:
             self.requirementRrange = float(range)
     
-    def handleMetrics(self):
+    def handleFineTuningMetrics(self):
         ## Get privacy metrics with weights
         privacyMetrics = self.configparser.getPrivacyMetrics()
         self.privacyCalculator.setMetrics(privacyMetrics)
@@ -123,6 +126,12 @@ class Chameleon():
         else:
             self.fineTuningModule = module
             self.fineTuningInstance = getattr(module, className)(self.generators, self.privacyCalculator, self.utilityCalculator)
+
+
+    def handleEvaluationMetrics(self):
+        ## Get privacy and utility metrics for evaluation report
+        metrics = self.configparser.getEvaluationMetrics()
+        self.evaluationReport.setMetrics(metrics)
 
 
     def getPrivacyLevel(self, level: int) -> PrivacyLevels:
@@ -278,7 +287,7 @@ class Chameleon():
             if self.fineTuningModule is None:
                 raise RuntimeError("No fine tuning method specified, please specify a method in the config file.")
             else:
-                synthetic_data = self.fineTuningInstance.fine_tune(suitable_generator, self.loader, synthetic_data, count, self.privacyMetricRequirement, self.privacyValueRequirement, self.utilityMetricRequirement, self.utilityValueRequirement, self.requirementRrange)
+                synthetic_data = self.create_data_loader(self.fineTuningInstance.fine_tune(suitable_generator, self.loader, synthetic_data, count, self.privacyMetricRequirement, self.privacyValueRequirement, self.utilityMetricRequirement, self.utilityValueRequirement, self.requirementRrange))
         
         if synthetic_data == None:
             print('The privacy and/or utility can not be reached. Try retraining the generators, adding a new generator or adapting the privacy or utility requirements.')
@@ -286,6 +295,10 @@ class Chameleon():
         
         ## Decode syn data
         # synthetic_data = self.decode(syn_encoded.dataframe())
+
+        ## Generate evaluation report of synthetic data
+        report = self.evaluationReport.generateReport(self.loader, synthetic_data)
+        print(report)
         
         print("---Releasing synthetic data---")
         return synthetic_data
@@ -303,59 +316,6 @@ class Chameleon():
         # print('decode')
         # syn = syn.decode(encoders)
         # print(syn)
-
-    
-    def confirm_synthetic_data(self, syn_data, generator, level, count):
-        print(" ")
-        print("This is the evaluation report of the current synthetic data:")
-
-        confirmed = False
-        while not confirmed:
-            ## TODO print privacy/utility summary of the synthetic data
-            #self.evaluation_report(syn_data_gen.dataframe())
-            print("---Privacy utility report---")
-            print(syn_data.dataframe())
-            print(self.privacy_level_metric.name() + ": " + str(self.privacy_level_metric.evaluate(self.loader, syn_data)))
-
-            ## Ask user to confirm privacy of the synthetic data
-            confirm_privacy_reply = input('Are you satisfied with the privacy of the synthetic data (yes/no)? ')
-            if confirm_privacy_reply == 'yes':
-                ## Ask user to confirm privacy of the synthetic data
-                confirm_utility_reply = input('Are you satisfied with the utility of the synthetic data (yes/no)? ')
-                if confirm_utility_reply == 'yes':
-                    confirmed = True
-                elif confirm_utility_reply == 'no':
-                    updated_data = self.increase_utility_stepwise(syn_data, generator)
-                else:
-                    print('Please reply with yes or no.')
-            elif confirm_privacy_reply == 'no':
-                updated_data = self.increase_privacy_stepwise(syn_data, generator, count)
-            else:
-                print('Please reply with yes or no.')
-            
-            if updated_data is not None:
-                syn_data = updated_data
-            else:
-                print('This is the highest possible privacy and utility.')
-                return syn_data
-
-        return syn_data
-    
-
-    def evaluation_report(self, syn):
-        ## Singling out attack
-        # evaluator = SinglingOutEvaluator(ori=self.original_data, syn=syn, control=self.control_data)
-        # evaluator.evaluate()
-        # print('Singling out attack: ' + evaluator.risk())
-        ## Linkability attack
-        evaluator = LinkabilityEvaluator(ori=self.original_data, syn=syn, control=self.control_data, aux_cols=self.aux_cols)
-        evaluator.evaluate()
-        print('Linkability attack: ' + str(evaluator.risk()))
-        # ## Inference attack
-        # evaluator = InferenceEvaluator(ori=self.original_data, syn=syn, control=self.control_data, aux_cols=self.aux_cols, secret=self.sensitive_features)
-        # evaluator.evaluate()
-        # print('Inference attack: ' + evaluator.risk())
-    
 
     
     def encode(self, X: pd.DataFrame) -> pd.DataFrame:

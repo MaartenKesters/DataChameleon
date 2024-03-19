@@ -14,6 +14,7 @@ class UtilityKnowledge():
 
     Each derived class must implement the following methods:
         name() - returns the name of the metric.
+        information() - returns the information of the metric.
         calculate() - returns the calculated value of the utility metric.
         range() - returns the range of possible values.
         utility() - returns 0 if small value in the range is high utility, 1 if high utility is a large value.
@@ -29,8 +30,13 @@ class UtilityKnowledge():
     def name() -> str:
         raise NotImplementedError()
     
+    @staticmethod
+    def information() -> str:
+        raise NotImplementedError()
+    
     def satisfied(self, required: float, val: float, error: float) -> bool:
-        if val >= required - error and val <= required + error:
+        # if val >= required - error and val <= required + error:
+        if (self.utility() == 1 and val >= required - error) or ((self.utility() == 0 and val <= required + error)):
             return True
         else:
             return False
@@ -60,6 +66,10 @@ class inverseKLDivergenceMetric(UtilityKnowledge):
     @staticmethod
     def name() -> str:
         return "inversekldivergence"
+    
+    @staticmethod
+    def information() -> str:
+        return "Returns the average inverse of the Kullback–Leibler Divergence metric."
     
     def calculate(self, X_gt: DataLoader, X_syn: DataLoader) -> float:
         return self.evaluator.evaluate(X_gt, X_syn).get('marginal')

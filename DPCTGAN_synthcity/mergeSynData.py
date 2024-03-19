@@ -27,53 +27,54 @@ class MergeSynData(FineTuningMethod):
         return "mergesyndata"
     
 
-    def fine_tune(self, current_generator: Plugin, real: DataLoader, syn: DataLoader, count: int, priv_metric_req: PrivacyKnowledge, priv_val_req: float, util_metric_req: UtilityKnowledge, util_val_req: float, error_range: float) -> DataLoader:
+    def fine_tune(self, current_generator: Plugin, real: DataLoader, syn: DataLoader, count: int, priv_metric_req: PrivacyKnowledge, priv_val_req: float, util_metric_req: UtilityKnowledge, util_val_req: float, error_range: float) -> pd.DataFrame:
+        print("fine tune")
         self.count = count
+        self.real = real
         self.current_generator = current_generator
         self.level = current_generator.get_privacy_level()
-        print("fine tune")
         
-        ## Fine tune privacy
+        ## Fine tune privacy and utility
         if priv_metric_req is not None and util_metric_req is not None:
-            new_syn = self.privacy_utility_tradeoff(real, syn, priv_metric_req, priv_val_req, util_metric_req, util_val_req, error_range)
+            new_syn = self.privacy_utility_tradeoff(self.real, syn, priv_metric_req, priv_val_req, util_metric_req, util_val_req, error_range)
         elif priv_metric_req is not None:
-            new_syn = self.privacy_fine_tuning(real, syn, priv_metric_req, priv_val_req, error_range)
+            new_syn = self.privacy_fine_tuning(self.real, syn, priv_metric_req, priv_val_req, error_range)
         elif util_metric_req is not None:
-            new_syn = self.utility_fine_tuning(real, syn, util_metric_req, util_val_req, error_range)
+            new_syn = self.utility_fine_tuning(self.real, syn, util_metric_req, util_val_req, error_range)
 
-        return new_syn
+        return new_syn.dataframe()
 
     
-    def privacy_utility_tradeoff(self, real: DataLoader, syn: DataLoader, priv_metric_req: PrivacyKnowledge, priv_val_req: float, util_metric_req: UtilityKnowledge, util_val_req: float, error_range: float) -> DataLoader:
+    def privacy_utility_tradeoff(self, syn: DataLoader, priv_metric_req: PrivacyKnowledge, priv_val_req: float, util_metric_req: UtilityKnowledge, util_val_req: float, error_range: float) -> DataLoader:
         counter = 0
         while counter < 10:
 
             satisfied = True
 
             ## Calculate the privacy
-            priv_val = priv_metric_req.calculate(real, syn)
+            priv_val = priv_metric_req.calculate(self.real, syn)
             if not priv_metric_req.satisfied(priv_val_req, priv_val, error_range):
                 ## Check in what direction the privacy has to change
                 result = priv_metric_req.change(priv_val_req, priv_val)
                 if result['direction'] == 'up':
-                    new = self.increase_privacy(real, syn, priv_metric_req, priv_val_req, result['amount'], error_range)
+                    new = self.increase_privacy(self.real, syn, priv_metric_req, priv_val_req, result['amount'], error_range)
                 elif result['direction'] == 'down':
-                    new = self.decrease_privacy(real, syn, priv_metric_req, priv_val_req, result['amount'], error_range)
+                    new = self.decrease_privacy(self.real, syn, priv_metric_req, priv_val_req, result['amount'], error_range)
 
                 if new is not None:
                     syn = new
                 else:
                     satisfied = False
 
-            print('priv increased: ' + str(priv_metric_req.calculate(real, syn)))
+            print('priv increased: ' + str(priv_metric_req.calculate(self.real, syn)))
             
             ## Calculate the utility
-            util_val = util_metric_req.calculate(real, syn)
+            util_val = util_metric_req.calculate(self.real, syn)
             if not util_metric_req.satisfied(util_val_req, util_val, error_range):
                 ## Check in what direction the utility has to change
                 result = util_metric_req.change(util_val_req, util_val)
                 if result['direction'] == 'up':
-                    new = self.increase_utility(real, syn, util_metric_req, util_val_req, result['amount'], error_range)
+                    new = self.increase_utility(self.real, syn, util_metric_req, util_val_req, result['amount'], error_range)
                 elif result['direction'] == 'down':
                     new = syn
 
@@ -82,10 +83,10 @@ class MergeSynData(FineTuningMethod):
                 else:
                     satisfied = False
 
-            print('util increased: ' + str(util_metric_req.calculate(real, syn)))
+            print('util increased: ' + str(util_metric_req.calculate(self.real, syn)))
 
-            priv_val = priv_metric_req.calculate(real, syn)
-            util_val = util_metric_req.calculate(real, syn)
+            priv_val = priv_metric_req.calculate(self.real, syn)
+            util_val = util_metric_req.calculate(self.real, syn)
             if satisfied and priv_metric_req.satisfied(priv_val_req, priv_val, error_range) and (util_metric_req.satisfied(util_val_req, util_val, error_range) or util_metric_req.change(util_val_req, util_val)['direction'] == 'down'):
                 return syn
             
@@ -97,9 +98,9 @@ class MergeSynData(FineTuningMethod):
         return None
     
 
-    def privacy_fine_tuning(self, real: DataLoader, syn: DataLoader, priv_metric_req: PrivacyKnowledge, priv_val_req: float, error_range: float) -> DataLoader:
+    def privacy_fine_tuning(self, syn: DataLoader, priv_metric_req: PrivacyKnowledge, priv_val_req: float, error_range: float) -> DataLoader:
         ## Calculate the privacy
-        priv_val = priv_metric_req.calculate(real, syn)
+        priv_val = priv_metric_req.calculate(self.real, syn)
         if priv_metric_req.satisfied(priv_val_req, priv_val, error_range):
             return syn
         
@@ -108,9 +109,9 @@ class MergeSynData(FineTuningMethod):
             ## Check in what direction the privacy has to change
             result = priv_metric_req.change(priv_val_req, priv_val)
             if result['direction'] == 'up':
-                new = self.increase_privacy(real, syn, priv_metric_req, priv_val_req, result['amount'], error_range)
+                new = self.increase_privacy(self.real, syn, priv_metric_req, priv_val_req, result['amount'], error_range)
             elif result['direction'] == 'down':
-                new = self.decrease_privacy(real, syn, priv_metric_req, priv_val_req, result['amount'], error_range)
+                new = self.decrease_privacy(self.real, syn, priv_metric_req, priv_val_req, result['amount'], error_range)
         
             if new is not None:
                 return new
@@ -120,9 +121,9 @@ class MergeSynData(FineTuningMethod):
         return None
 
 
-    def utility_fine_tuning(self, real: DataLoader, syn: DataLoader, util_metric_req: UtilityKnowledge, util_val_req: float, error_range: float) -> DataLoader:
+    def utility_fine_tuning(self, syn: DataLoader, util_metric_req: UtilityKnowledge, util_val_req: float, error_range: float) -> DataLoader:
         ## Calculate the utility
-        util_val = util_metric_req.calculate(real, syn)
+        util_val = util_metric_req.calculate(self.real, syn)
         if util_metric_req.satisfied(util_val_req, util_val, error_range):
             return syn
         
@@ -131,7 +132,7 @@ class MergeSynData(FineTuningMethod):
             ## Check in what direction the utility has to change
             result = util_metric_req.change(util_val_req, util_val)
             if result['direction'] == 'up':
-                new = self.increase_utility(real, syn, util_metric_req, util_val_req, result['amount'], error_range)
+                new = self.increase_utility(self.real, syn, util_metric_req, util_val_req, result['amount'], error_range)
 
             ## Don't do anything if utility is above the requested value, higher utility than requested is ok
         
@@ -143,7 +144,7 @@ class MergeSynData(FineTuningMethod):
         return None
         
     
-    def increase_privacy(self, real: DataLoader, syn: DataLoader, priv_metric_req: PrivacyKnowledge, priv_val_req: float, amount: float, error_range: float) -> DataLoader:
+    def increase_privacy(self, syn: DataLoader, priv_metric_req: PrivacyKnowledge, priv_val_req: float, amount: float, error_range: float) -> DataLoader:
         print('Increase privacy')
         
         requested_level = self.current_generator.get_privacy_level().level
@@ -165,10 +166,10 @@ class MergeSynData(FineTuningMethod):
                 # new_data = self.create_data_loader(self.encode(new_data.dataframe()))
 
                 ## Current privacy of syn data
-                cur_priv = self.privacy_calc.calculatePrivacy(real, syn)
+                cur_priv = self.privacy_calc.calculatePrivacy(self.real, syn)
 
                 ## privacy of syn_data of different privacy level
-                new_priv = self.privacy_calc.calculatePrivacy(real, new_data)
+                new_priv = self.privacy_calc.calculatePrivacy(self.real, new_data)
                 
                 ## Don't merge syn data with data from other level if the other data has lower privacy
                 if new_priv < cur_priv:
@@ -187,7 +188,7 @@ class MergeSynData(FineTuningMethod):
                 combined_data = syn.dataframe().drop(ranked_rows[:int((self.count * amount))])
                 combined_data = pd.concat([combined_data, selected_rows], ignore_index=True)
                 combined_data_loader = GenericDataLoader(combined_data)
-                combined_priv = self.privacy_calc.calculatePrivacy(real, combined_data_loader)
+                combined_priv = self.privacy_calc.calculatePrivacy(self.real, combined_data_loader)
 
                 ## Check if the merge improved the privacy
                 if combined_priv < cur_priv:
@@ -197,7 +198,7 @@ class MergeSynData(FineTuningMethod):
                 rows_added = True
 
                 ## Test if privacy function is satisfied
-                priv_val = priv_metric_req.calculate(real, combined_data_loader)
+                priv_val = priv_metric_req.calculate(self.real, combined_data_loader)
                 if priv_metric_req.satisfied(priv_val_req, priv_val, error_range):
                     return combined_data_loader
                 
@@ -216,7 +217,7 @@ class MergeSynData(FineTuningMethod):
         return None
 
 
-    def decrease_privacy(self, real: DataLoader, syn: DataLoader, priv_metric_req: PrivacyKnowledge, priv_val_req: float, amount: float, error_range: float) -> DataLoader:
+    def decrease_privacy(self, syn: DataLoader, priv_metric_req: PrivacyKnowledge, priv_val_req: float, amount: float, error_range: float) -> DataLoader:
         print('Decrease privacy')
         
         requested_level = self.current_generator.get_privacy_level().level
@@ -238,10 +239,10 @@ class MergeSynData(FineTuningMethod):
                 # new_data = self.create_data_loader(self.encode(new_data.dataframe()))
 
                 ## Current privacy of syn data
-                cur_priv = self.privacy_calc.calculatePrivacy(real, syn)
+                cur_priv = self.privacy_calc.calculatePrivacy(self.real, syn)
 
                 ## privacy of syn_data of different privacy level
-                new_priv = self.privacy_calc.calculatePrivacy(real, new_data)
+                new_priv = self.privacy_calc.calculatePrivacy(self.real, new_data)
                 
                 ## Don't merge syn data with data from other level if the other data has higher privacy
                 if new_priv > cur_priv:
@@ -260,7 +261,7 @@ class MergeSynData(FineTuningMethod):
                 combined_data = syn.dataframe().drop(ranked_rows[:int((self.count * amount))])
                 combined_data = pd.concat([combined_data, selected_rows], ignore_index=True)
                 combined_data_loader = GenericDataLoader(combined_data)
-                combined_priv = self.privacy_calc.calculatePrivacy(real, combined_data_loader)
+                combined_priv = self.privacy_calc.calculatePrivacy(self.real, combined_data_loader)
 
                 ## Check if the merge improved the privacy
                 if combined_priv > cur_priv:
@@ -270,7 +271,7 @@ class MergeSynData(FineTuningMethod):
                 rows_added = True
 
                 ## Test if privacy function is satisfied
-                priv_val = priv_metric_req.calculate(real, syn)
+                priv_val = priv_metric_req.calculate(self.real, syn)
                 if priv_metric_req.satisfied(priv_val_req, priv_val, error_range):
                     return combined_data_loader
                 
@@ -288,12 +289,12 @@ class MergeSynData(FineTuningMethod):
         ## Requested privacy can not be reached
         return None
 
-    def increase_utility(self, real: DataLoader, syn: DataLoader, util_metric_req: UtilityKnowledge, util_val_req: float, amount: float, error_range: float) -> DataLoader:
+    def increase_utility(self, syn: DataLoader, util_metric_req: UtilityKnowledge, util_val_req: float, amount: float, error_range: float) -> DataLoader:
         print('Increase utility')
         
         requested_level = self.current_generator.get_privacy_level().level
 
-        real_data = real.dataframe()
+        real_data = self.real.dataframe()
         syn_data = syn.dataframe()
 
         ## Counter to avoid getting stuck when no improvements are made
@@ -305,7 +306,7 @@ class MergeSynData(FineTuningMethod):
                 break
             
             ## Test if utility function is satisfied before all frequencies are
-            util_val = util_metric_req.calculate(real, syn)
+            util_val = util_metric_req.calculate(self.real, syn)
             if util_metric_req.satisfied(util_val_req, util_val, error_range):
                 return GenericDataLoader(syn_data)
 
@@ -408,7 +409,7 @@ class MergeSynData(FineTuningMethod):
                 no_change = no_change +1
 
         new_data_loader = GenericDataLoader(syn_data)
-        util_val = util_metric_req.calculate(real, new_data_loader)
+        util_val = util_metric_req.calculate(self.real, new_data_loader)
         if util_metric_req.satisfied(util_val_req, util_val, error_range):
             return new_data_loader
 
@@ -416,21 +417,21 @@ class MergeSynData(FineTuningMethod):
         return None
 
     
-    def column_frequencies(self, real: pd.DataFrame, syn: pd.DataFrame, n_histogram_bins: int = 10) -> dict:
+    def column_frequencies(self, syn: pd.DataFrame, n_histogram_bins: int = 10) -> dict:
         """Get percentual frequencies for each possible real categorical value.
 
         Returns:
             The observed and expected frequencies (as a percent).
         """
         res = {}
-        for col in real.columns:
-            local_bins = min(n_histogram_bins, len(real[col].unique()))
+        for col in self.real.columns:
+            local_bins = min(n_histogram_bins, len(self.real[col].unique()))
 
-            if len(real[col].unique()) < 5:  # categorical
-                gt = (real[col].value_counts() / len(real)).to_dict()
+            if len(self.real[col].unique()) < 5:  # categorical
+                gt = (self.real[col].value_counts() / len(self.real)).to_dict()
                 synth = (syn[col].value_counts() / len(syn)).to_dict()
             else:
-                gt_vals, bins = np.histogram(real[col], bins=local_bins)
+                gt_vals, bins = np.histogram(self.real[col], bins=local_bins)
                 synth_vals, _ = np.histogram(syn[col], bins=bins)
                 gt = {k: v / (sum(gt_vals) + 1e-8) for k, v in zip(bins, gt_vals)}
                 synth = {k: v / (sum(synth_vals) + 1e-8) for k, v in zip(bins, synth_vals)}

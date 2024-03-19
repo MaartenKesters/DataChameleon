@@ -200,6 +200,14 @@ class Plugin(Serializable, metaclass=ABCMeta):
     def get_encoder(self):
         ...
 
+    @abstractmethod
+    def save_model(self, path):
+        ...
+    
+    @abstractmethod
+    def load_model(self, path):
+        ...
+
     @validate_arguments(config=dict(arbitrary_types_allowed=True))
     def fit(self, X: Union[DataLoader, pd.DataFrame], *args: Any, **kwargs: Any) -> Any:
         """Training method the synthetic data plugin.

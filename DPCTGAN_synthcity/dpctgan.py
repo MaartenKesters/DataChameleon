@@ -9,6 +9,7 @@ import pandas as pd
 # Necessary packages
 from pydantic import validate_arguments
 from torch.utils.data import sampler
+import torch
 
 # synthcity absolute
 from synthcity.metrics.weighted_metrics import WeightedMetrics
@@ -338,6 +339,11 @@ class DPCTGANPlugin(Plugin):
     
     def get_encoder(self):
         return self.encoder
-
+    
+    def save_model(self, path):
+        torch.save(self.model.state_dict(), path)
+    
+    def load_model(self, path):
+        self.model.load_state_dict(torch.load(path))
 
 # pluGANPlugin

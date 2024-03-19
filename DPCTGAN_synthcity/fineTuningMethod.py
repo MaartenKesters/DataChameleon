@@ -33,100 +33,110 @@ class FineTuningMethod():
         self.privacy_calc = privacyCalculator
         self.utility_calc = utilityCalculator
 
-    def fine_tune(self, current_generator: Plugin, real: DataLoader, syn: DataLoader, count: int, priv_metric_req: PrivacyKnowledge, priv_val_req: float, util_metric_req: UtilityKnowledge, util_val_req: float, error_range: float) -> DataLoader:
+    def fine_tune(self, current_generator: Plugin, real: DataLoader, syn: DataLoader, count: int, priv_metric_req: PrivacyKnowledge, priv_val_req: float, util_metric_req: UtilityKnowledge, util_val_req: float, error_range: float) -> pd.DataFrame:
+        print("fine tune")
         self.count = count
+        self.real = real
         self.current_generator = current_generator
         self.level = current_generator.get_privacy_level()
-        print("fine tune")
 
-        priv_syn = syn
-        util_syn = syn
+        satisfied = False
 
-        ## Fine tune privacy
-        if priv_metric_req is not None:
-            ## Calculate the current privacy to use during fine tuning
-            self.current_privacy = self.privacy_calc.calculatePrivacy(real, syn)
+        while not satisfied:
 
-            priv_satisfied = False
-            while not priv_satisfied:
-                ## Calculate the privacy
-                val = priv_metric_req.calculate(real, priv_syn)
-                print('calc req: ' + str(val))
+            ## Fine tune privacy
+            if priv_metric_req is not None:
+                ## Calculate the current privacy to use during fine tuning
+                self.current_privacy = self.privacy_calc.calculatePrivacy(self.real, syn)
 
-                if priv_metric_req.satisfied(priv_val_req, val, error_range):
-                    priv_satisfied = True
-                    break
+                priv_satisfied = False
+                while not priv_satisfied:
+                    ## Calculate the privacy
+                    val = priv_metric_req.calculate(self.real, syn)
+                    print('calc req: ' + str(val))
 
-                ## Check in what direction the privacy has to change
-                result = priv_metric_req.change(priv_val_req, val)
-                if result['direction'] == 'up':
-                    new = self.increase_privacy(real, priv_syn, result['amount'])
-                elif result['direction'] == 'down':
-                    new = self.decrease_privacy(real, priv_syn, result['amount'])
+                    if priv_metric_req.satisfied(priv_val_req, val, error_range):
+                        priv_satisfied = True
+                        break
 
-                ## If new is None, no improvements are made
-                if new is not None:
-                    priv_syn = new
-                else:
-                    break
+                    ## Check in what direction the privacy has to change
+                    result = priv_metric_req.change(priv_val_req, val)
+                    if result['direction'] == 'up':
+                        new = self.increase_privacy(syn, result['amount'])
+                    elif result['direction'] == 'down':
+                        new = self.decrease_privacy(syn, result['amount'])
 
-        ## Fine tune utility
-        self.current_generator.set_privacy_level(self.level)
-        if util_metric_req is not None:
-            ## Calculate the current utility to use during fine tuning
-            self.current_utility = self.utility_calc.calculateUtility(real, syn)
+                    ## If new is None, no improvements are made
+                    if new is not None:
+                        syn = new
+                    else:
+                        break
 
-            util_satisfied = False
-            while not util_satisfied:
-                ## Calculate the utility
-                val = util_metric_req.calculate(real, util_syn)
-                print('calc req: ' + str(val))
+            ## Fine tune utility
+            if util_metric_req is not None:
+                ## Calculate the current utility to use during fine tuning
+                self.current_utility = self.utility_calc.calculateUtility(self.real, syn)
 
-                if util_metric_req.satisfied(util_val_req, val, error_range):
-                    util_satisfied = True
-                    break
+                util_satisfied = False
+                while not util_satisfied:
+                    ## Calculate the utility
+                    val = util_metric_req.calculate(self.real, syn)
+                    print('calc req: ' + str(val))
+
+                    if util_metric_req.satisfied(util_val_req, val, error_range):
+                        util_satisfied = True
+                        break
+                    
+                    ## Check in what direction the utility has to change
+                    result = util_metric_req.change(util_val_req, val)
+                    if result['direction'] == 'up':
+                        new = self.increase_utility(syn, result['amount'])
+                    elif result['direction'] == 'down':
+                        new = self.decrease_utility(syn, result['amount'])
+
+                    ## If new is None, no improvements are made
+                    if new is not None:
+                        syn = new
+                    else:
+                        break
+
+            ## Calculate the privacy and utility, check if both values are still larger than the required value
+            print('final check')
+            priv_val = priv_metric_req.calculate(self.real, syn)
+            util_val = util_metric_req.calculate(self.real, syn)
+            print('calc priv req: ' + str(priv_val))
+            print('calc util req: ' + str(util_val))
+            if (priv_metric_req.satisfied(priv_val_req, priv_val, error_range) or priv_val > priv_val_req) and (util_metric_req.satisfied(util_val_req, util_val, error_range) or util_val > util_val_req):
+                return syn.dataframe()
+            
+            ## Merge privacy and utility fine tuned data
+            # if priv_metric_req is not None and util_metric_req is not None:
+            #     priv_syn = priv_syn.dataframe().sample(int(count/2))
+            #     util_syn = util_syn.dataframe().sample(int(count/2))
+            #     return pd.concat([priv_syn, util_syn], ignore_index=True)
+            # elif priv_metric_req is not None:
+            #     return priv_syn.dataframe()
+            # elif util_metric_req is not None:
+            #     return util_syn.dataframe()
                 
-                ## Check in what direction the utility has to change
-                result = util_metric_req.change(util_val_req, val)
-                if result['direction'] == 'up':
-                    new = self.increase_utility(real, util_syn, result['amount'])
-                elif result['direction'] == 'down':
-                    new = self.decrease_utility(real, util_syn, result['amount'])
-
-                ## If new is None, no improvements are made
-                if new is not None:
-                    util_syn = new
-                else:
-                    break
-        
-        ## Merge privacy and utility fine tuned data
-        if priv_metric_req is not None and util_metric_req is not None:
-            priv_syn = priv_syn.dataframe().sample(int(count/2))
-            util_syn = util_syn.dataframe().sample(int(count/2))
-            return GenericDataLoader(pd.concat([priv_syn, util_syn]).reset_index())
-        elif priv_metric_req is not None:
-            return priv_syn
-        elif util_metric_req is not None:
-            return util_syn
-                
-        return priv_syn
+        return None
 
     @staticmethod
     def name() -> str:
         raise NotImplementedError()
     
     @abstractmethod
-    def increase_privacy(self, real: DataLoader, syn: DataLoader, amount: float) -> DataLoader:
+    def increase_privacy(self, syn: DataLoader, amount: float) -> DataLoader:
         pass
 
     @abstractmethod
-    def decrease_privacy(self, real: DataLoader, syn: DataLoader, amount: float) -> DataLoader:
+    def decrease_privacy(self, syn: DataLoader, amount: float) -> DataLoader:
         pass
 
     @abstractmethod
-    def increase_utility(self, real: DataLoader, syn: DataLoader, amount: float) -> DataLoader:
+    def increase_utility(self, syn: DataLoader, amount: float) -> DataLoader:
         pass
 
     @abstractmethod
-    def decrease_utility(self, real: DataLoader, syn: DataLoader, amount: float) -> DataLoader:
+    def decrease_utility(self, syn: DataLoader, amount: float) -> DataLoader:
         pass

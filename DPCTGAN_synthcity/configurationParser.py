@@ -9,6 +9,12 @@ class ConfigHandler():
         self.config = configparser.ConfigParser()
         self.config.read('config.ini')
 
+    def parseConfigs(self):
+        self.parseRequirements()
+        self.parseFineTuningMetrics()
+        self.parseFineTuningMethod()
+        self.parseEvaluationMetrics()
+
     def parseRequirements(self):
         self.privacyLevel = self.config.get('Requirements', 'level')
         self.range = self.config.get('Requirements', 'range')
@@ -34,6 +40,14 @@ class ConfigHandler():
     def parseFineTuningMethod(self):
         self.fineTuningModule = self.config.get('FineTuning', 'module')
         self.fineTuningClass = self.config.get('FineTuning', 'className')
+
+    def parseEvaluationMetrics(self):
+        self.evalPrivacyMetric1 = self.config.get('Evaluation', 'privacymetric1')
+        self.evalPrivacyMetric2 = self.config.get('Evaluation', 'privacymetric2')
+        self.evalPrivacyMetric3 = self.config.get('Evaluation', 'privacymetric3')
+        self.evalUtilityMetric1 = self.config.get('Evaluation', 'utilitymetric1')
+        self.evalUtilityMetric2 = self.config.get('Evaluation', 'utilitymetric2')
+        self.evalUtilityMetric3 = self.config.get('Evaluation', 'utilitymetric3')
     
     def getPrivacyLevel(self):
         return self.privacyLevel
@@ -54,13 +68,16 @@ class ConfigHandler():
         return self.utilityValueRequirement
     
     def getPrivacyMetrics(self):
-        return {'metric1':self.privacyMetric1, 'weight1':self.privacyMetric1Weight, 'metric2':self.privacyMetric2, 'weight2':self.privacyMetric2Weight, 'metric3':self.privacyMetric3, 'weight3':self.privacyMetric3Weight,}
+        return {'metric1':self.privacyMetric1, 'weight1':self.privacyMetric1Weight, 'metric2':self.privacyMetric2, 'weight2':self.privacyMetric2Weight, 'metric3':self.privacyMetric3, 'weight3':self.privacyMetric3Weight}
     
     def getUtilityMetrics(self):
-        return {'metric1':self.utilityMetric1, 'weight1':self.utilityMetric1Weight, 'metric2':self.utilityMetric2, 'weight2':self.utilityMetric2Weight, 'metric3':self.utilityMetric3, 'weight3':self.utilityMetric3Weight,}
+        return {'metric1':self.utilityMetric1, 'weight1':self.utilityMetric1Weight, 'metric2':self.utilityMetric2, 'weight2':self.utilityMetric2Weight, 'metric3':self.utilityMetric3, 'weight3':self.utilityMetric3Weight}
     
     def getFineTuningModule(self):
         return self.fineTuningModule
     
     def getFineTuningClass(self):
         return self.fineTuningClass
+    
+    def getEvaluationMetrics(self):
+        return {'privmetric1':self.evalPrivacyMetric1, 'privmetric2':self.evalPrivacyMetric2, 'privmetric3':self.evalPrivacyMetric3, 'utilmetric1':self.evalUtilityMetric1, 'utilmetric2':self.evalUtilityMetric2, 'utilmetric3':self.evalUtilityMetric3}
