@@ -10,7 +10,6 @@
 
 from synthcity.metrics.eval_sanity import NearestSyntheticNeighborDistance
 from synthcity.metrics.eval_privacy import IdentifiabilityScore, DeltaPresence
-from nn_adversarial_accuracy import NearestNeighborMetrics
 from synthcity.metrics.eval_attacks import DataLeakageMLP
 
 def privacy(real_data, syn_data, error):
@@ -52,13 +51,3 @@ def dataLeakageMLP(real_data, syn_data, error):
         return True
     else:
         return False
-    
-def nearestNeighborAccuracyMetric(real_data, test, syn_data, error):
-    evaluator = NearestNeighborMetrics(real_data.dataframe(), test, syn_data.dataframe())
-    evaluator.compute_nn()
-    score = evaluator.compute_adversarial_accuracy()
-    print('Nearest neighbor accuracy score: ' + str(score))
-    # if score > 0.2:
-    #     return True
-    # else:
-    #     return False

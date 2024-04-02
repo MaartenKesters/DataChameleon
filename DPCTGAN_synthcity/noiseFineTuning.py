@@ -52,8 +52,8 @@ class NoiseFineTuning(FineTuningMethod):
                         priv_satisfied = True
                         break
                     else:
-                        result = priv_metric_req.change(priv_val_req, val)
-                        new_syn = self.increase_privacy(new_syn, result['amount'])
+                        amount = priv_metric_req.amount(priv_val_req, val)
+                        new_syn = self.increase_privacy(new_syn, amount)
 
         return new_syn.dataframe()
     
@@ -75,11 +75,11 @@ class NoiseFineTuning(FineTuningMethod):
             ## Further increase the privacy
             return self.increase_privacy(syn, amount * 2)
 
-    def decrease_privacy(self, syn: DataLoader, amount: float) -> DataLoader:
-        ...
+    # def decrease_privacy(self, syn: DataLoader, amount: float) -> DataLoader:
+    #     ...
 
     def increase_utility(self, syn: DataLoader, amount: float) -> DataLoader:
         ...
 
-    def decrease_utility(self, syn: DataLoader, amount: float) -> DataLoader:
-        ...
+    # def decrease_utility(self, syn: DataLoader, amount: float) -> DataLoader:
+    #     ...

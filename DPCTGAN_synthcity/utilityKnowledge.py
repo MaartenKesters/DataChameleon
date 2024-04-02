@@ -18,7 +18,7 @@ class UtilityKnowledge():
         calculate() - returns the calculated value of the utility metric.
         range() - returns the range of possible values.
         utility() - returns 0 if small value in the range is high utility, 1 if high utility is a large value.
-        change() - returns a dict with 'direction' 0 or 1 if utility needs to decrease or increase, 'amount' to indicate how much it needs to change.
+        amount() - returns a float that indicates how much the value still needs to change to satisfy the required value.
 
     If any method implementation is missing, the class constructor will fail.
         
@@ -53,9 +53,13 @@ class UtilityKnowledge():
     def utility(self) -> int:
         pass
     
-    @abstractmethod
-    def change(self, required: float, val: float) -> dict:
-        pass
+    def amount(self, required: float, val: float) -> float:
+        if self.utility() == 1:
+            amount = (required - val) / (self.range()[1] - self.range()[0])
+            return amount
+        else:
+            amount = (val - required) / (self.range()[1] - self.range()[0])
+            return amount
     
 class inverseKLDivergenceMetric(UtilityKnowledge):
     def __init__(self) -> None:
@@ -79,12 +83,4 @@ class inverseKLDivergenceMetric(UtilityKnowledge):
     
     def utility(self) -> int:
         return 1
-
-    def change(self, required: float, val: float) -> dict:
-        if val < required:
-            amount = (required - val) / (self.rangeHigh - self.rangeLow)
-            return {'direction': 'up', 'amount': amount}
-        else:
-            amount = (val - required) / (self.rangeHigh - self.rangeLow)
-            return {'direction': 'down', 'amount': amount}
     

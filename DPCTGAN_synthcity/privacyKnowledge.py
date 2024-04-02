@@ -5,11 +5,14 @@ from synthcity.metrics.eval_sanity import NearestSyntheticNeighborDistance
 from synthcity.metrics.eval_privacy import IdentifiabilityScore
 from synthcity.metrics.eval_attacks import DataLeakageMLP
 
+from anonymeter.evaluators import SinglingOutEvaluator, LinkabilityEvaluator, InferenceEvaluator
+
 ## dictionary to get the class name from the name given in the configuration file
 CLASS_NAME_FILE = {
     "nearestneighbordistance" : "NearestNeighborDistance",
     "identifiabilityscore" : "Identifiability",
-    "dataleakage" : "DataLeakage"
+    "dataleakage" : "DataLeakage",
+    "singlingout" : "SinglingOut"
 }
 
 class PrivacyKnowledge():
@@ -22,7 +25,7 @@ class PrivacyKnowledge():
         calculate() - returns the calculated value of the privacy metric.
         range() - returns the range of possible values.
         privacy() - returns 0 if small value in the range is high privacy, 1 if high privacy is a large value.
-        change() - returns a dict with 'direction' up or down if privacy needs to increase or decrease, 'amount' to indicate how much it needs to change.
+        amount() - returns a float that indicates how much the value still needs to change to satisfy the required value.
 
     If any method implementation is missing, the class constructor will fail.
         
@@ -57,13 +60,13 @@ class PrivacyKnowledge():
     def privacy(self) -> int:
         pass
     
-    def change(self, required: float, val: float) -> dict:
-        if val < required:
-            amount = (required - val) / (self.rangeHigh - self.rangeLow)
-            return {'direction': 'up', 'amount': amount}
+    def amount(self, required: float, val: float) -> float:
+        if self.privacy() == 1:
+            amount = (required - val) / (self.range()[1] - self.range()[0])
+            return amount
         else:
-            amount = (val - required) / (self.rangeHigh - self.rangeLow)
-            return {'direction': 'down', 'amount': amount}
+            amount = (val - required) / (self.range()[1] - self.range()[0])
+            return amount
     
 class NearestNeighborDistance(PrivacyKnowledge):
     def __init__(self) -> None:
@@ -135,3 +138,29 @@ class DataLeakage(PrivacyKnowledge):
     
     def privacy(self) -> int:
         return 0
+    
+class SinglingOut(PrivacyKnowledge):
+    def __init__(self) -> None:
+        self.rangeLow = 0
+        self.rangeHigh = 1.0
+
+    @staticmethod
+    def name() -> str:
+        return "singlingout"
+    
+    @staticmethod
+    def information() -> str:
+        return "Measures how much the synthetic data can help an attacker find combination of attributes that single out records in the training data."
+    
+    def calculate(self, X_gt: DataLoader, X_syn: DataLoader) -> float:
+        self.evaluator = SinglingOutEvaluator(ori=X_gt.dataframe(), syn=X_syn.dataframe(), n_attacks=500)
+        self.evaluator.evaluate(mode='univariate')
+        risk = self.evaluator.risk()
+        return risk.value
+    
+    def range(self) -> [float]:
+        return [self.rangeLow, self.rangeHigh]
+    
+    def privacy(self) -> int:
+        return 0
+    

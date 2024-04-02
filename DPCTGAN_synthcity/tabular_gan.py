@@ -332,7 +332,6 @@ class TabularGAN(torch.nn.Module):
         fake_labels_generator: Optional[Callable] = None,
         true_labels_generator: Optional[Callable] = None,
         encoded: bool = False,
-        update: bool = False,
     ) -> Any:
         # preprocessing
         if encoded:
@@ -362,7 +361,6 @@ class TabularGAN(torch.nn.Module):
             np.asarray(cond),
             fake_labels_generator=fake_labels_generator,
             true_labels_generator=true_labels_generator,
-            update=update,
         )
 
         # post processing

@@ -328,17 +328,11 @@ class DPCTGANPlugin(Plugin):
         self.privacy_level = level
         self.dp_epsilon = level.epsilon
     
-    def get_privacy_budget(self) -> float:
-        return self.model.get_privacy_budget()
-    
     def set_dp_epsilon(self, value):
         self.dp_epsilon = value
 
     def get_dp_epsilon(self) -> float:
         return self.dp_epsilon
-    
-    def get_encoder(self):
-        return self.encoder
     
     def save_model(self, path):
         torch.save(self.model.state_dict(), path)

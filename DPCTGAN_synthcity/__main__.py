@@ -13,11 +13,8 @@ from sklearn.metrics import jaccard_score
 
 from chameleon import Chameleon
 from dpctgan import DPCTGANPlugin
-from user import User
+from adsgan import AdsGANPlugin
 from privacyLevel import PrivacyLevels
-
-import utility_functions
-import privacy_functions
 
 from ucimlrepo import fetch_ucirepo
 
@@ -32,10 +29,14 @@ def main():
     chameleon.add_user("User3", False, PrivacyLevels.SECRET)
 
     ## Create baseline models for chameleon
-    model1 = DPCTGANPlugin(privacy_level=PrivacyLevels.LOW)
-    model2 = DPCTGANPlugin(privacy_level=PrivacyLevels.MEDIUM)
-    model3 = DPCTGANPlugin(privacy_level=PrivacyLevels.HIGH)
-    model4 = DPCTGANPlugin(privacy_level=PrivacyLevels.SECRET)
+    # model1 = DPCTGANPlugin(privacy_level=PrivacyLevels.LOW)
+    # model2 = DPCTGANPlugin(privacy_level=PrivacyLevels.MEDIUM)
+    # model3 = DPCTGANPlugin(privacy_level=PrivacyLevels.HIGH)
+    # model4 = DPCTGANPlugin(privacy_level=PrivacyLevels.SECRET)
+    model1 = AdsGANPlugin(privacy_level=PrivacyLevels.LOW)
+    model2 = AdsGANPlugin(privacy_level=PrivacyLevels.MEDIUM)
+    model3 = AdsGANPlugin(privacy_level=PrivacyLevels.HIGH)
+    model4 = AdsGANPlugin(privacy_level=PrivacyLevels.SECRET)
     chameleon.add_generator(model1)
     chameleon.add_generator(model2)
     chameleon.add_generator(model3)
@@ -66,9 +67,9 @@ def main():
     
     ## Preprocess the data
     # data = data.drop(columns=['STDs: Time since first diagnosis', 'STDs: Time since last diagnosis'])
-    # data = data.replace('?', '-1')
+    # data.drop(data[data.apply(lambda x: '?' in x.values, axis=1)].index, inplace=True)
     # data[['Number of sexual partners', 'First sexual intercourse', 'Num of pregnancies', 'Smokes', 'Hormonal Contraceptives', 'Hormonal Contraceptives (years)', 'IUD', 'IUD (years)', 'STDs', 'STDs (number)', 'STDs:condylomatosis','STDs:cervical condylomatosis','STDs:vaginal condylomatosis','STDs:vulvo-perineal condylomatosis','STDs:syphilis','STDs:pelvic inflammatory disease','STDs:genital herpes','STDs:molluscum contagiosum','STDs:AIDS','STDs:HIV','STDs:Hepatitis B','STDs:HPV']] = data[['Number of sexual partners', 'First sexual intercourse', 'Num of pregnancies', 'Smokes', 'Hormonal Contraceptives', 'Hormonal Contraceptives (years)', 'IUD', 'IUD (years)', 'STDs', 'STDs (number)', 'STDs:condylomatosis','STDs:cervical condylomatosis','STDs:vaginal condylomatosis','STDs:vulvo-perineal condylomatosis','STDs:syphilis','STDs:pelvic inflammatory disease','STDs:genital herpes','STDs:molluscum contagiosum','STDs:AIDS','STDs:HIV','STDs:Hepatitis B','STDs:HPV']].astype(float)
-    # print(data.head())
+    # data = data.sample(n=500)
 
     ## Get a update dataset, data that is new when generators are already trained
     # update_data = csv.sample(n=500,replace="False")
@@ -81,6 +82,7 @@ def main():
     # adult = fetch_ucirepo(id=2)
     # X = adult.data.features 
     # data = X.sample(n=1000)
+    # data.drop(data[data.apply(lambda x: '?' in x.values, axis=1)].index, inplace=True)
 
     # data2 = X.sample(n=1000)
 
@@ -111,7 +113,8 @@ def main():
 
 
     ## Create data loader
-    data_loader = chameleon.load_real_data(data, sensitive_features=sensitive_features)
+    chameleon.load_real_data(data, sensitive_features=sensitive_features)
+    # chameleon.encode_data(data_loader.dataframe())
 
     ## Train baseline models of chameleon
     chameleon.train_generators()

@@ -13,6 +13,7 @@ class ConfigHandler():
         self.parseRequirements()
         self.parseFineTuningMetrics()
         self.parseFineTuningMethod()
+        self.parseEncoding()
         self.parseEvaluationMetrics()
 
     def parseRequirements(self):
@@ -40,6 +41,13 @@ class ConfigHandler():
     def parseFineTuningMethod(self):
         self.fineTuningModule = self.config.get('FineTuning', 'module')
         self.fineTuningClass = self.config.get('FineTuning', 'className')
+
+    def parseEncoding(self):
+        encode = self.config.get('Encoding', 'encode')
+        if encode == '1':
+            self.encode = True
+        else:
+            self.encode = False
 
     def parseEvaluationMetrics(self):
         self.evalPrivacyMetric1 = self.config.get('Evaluation', 'privacymetric1')
@@ -78,6 +86,9 @@ class ConfigHandler():
     
     def getFineTuningClass(self):
         return self.fineTuningClass
+    
+    def getEncoding(self):
+        return self.encode
     
     def getEvaluationMetrics(self):
         return {'privmetric1':self.evalPrivacyMetric1, 'privmetric2':self.evalPrivacyMetric2, 'privmetric3':self.evalPrivacyMetric3, 'utilmetric1':self.evalUtilityMetric1, 'utilmetric2':self.evalUtilityMetric2, 'utilmetric3':self.evalUtilityMetric3}

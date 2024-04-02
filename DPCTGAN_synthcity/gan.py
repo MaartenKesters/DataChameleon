@@ -261,7 +261,6 @@ class GAN(nn.Module):
         cond: Optional[np.ndarray] = None,
         fake_labels_generator: Optional[Callable] = None,
         true_labels_generator: Optional[Callable] = None,
-        update: bool = False,
     ) -> "GAN":
         clear_cache()
 
@@ -289,7 +288,6 @@ class GAN(nn.Module):
             condt,
             fake_labels_generator=fake_labels_generator,
             true_labels_generator=true_labels_generator,
-            update=update,
         )
 
         return self
@@ -586,7 +584,6 @@ class GAN(nn.Module):
         cond: Optional[torch.Tensor] = None,
         fake_labels_generator: Optional[Callable] = None,
         true_labels_generator: Optional[Callable] = None,
-        update: bool = False,
     ) -> "GAN":
         self._original_cond = cond
 
@@ -603,18 +600,6 @@ class GAN(nn.Module):
 
             if self.privacy_engine == None:
                 self.privacy_engine = PrivacyEngine(secure_mode=self.dp_secure_mode)
-            
-            if update:
-                print('---increase privacy---')
-                print('old Privacy budget: ' + str(self.privacy_engine.get_epsilon(self.dp_delta)))
-                g_loss, d_loss = self._train_epoch(
-                    self.data_loader,
-                    fake_labels_generator=fake_labels_generator,
-                    true_labels_generator=true_labels_generator,
-                )
-                print('updated Privacy budget: ' + str(self.privacy_engine.get_epsilon(self.dp_delta)))
-                print('---increase done---')
-                return self
             
             (
                 self.discriminator,
@@ -671,9 +656,6 @@ class GAN(nn.Module):
 
         if best_state_dict is not None:
             self.load_state_dict(best_state_dict)
-
-        if update:
-            print(self.privacy_engine.get_epsilon(self.dp_delta))
 
         return self
 

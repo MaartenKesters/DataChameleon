@@ -54,30 +54,30 @@ class NewGenerator(FineTuningMethod):
             ## Further increase the privacy
             return self.increase_privacy(syn, amount * 2)
 
-    def decrease_privacy(self, syn: DataLoader, amount: float) -> DataLoader:
-        print('Decrease privacy')
-        ## set current generator eps as high bound
-        self.eps_high_priv_bound = self.current_generator.get_dp_epsilon()
+    # def decrease_privacy(self, syn: DataLoader, amount: float) -> DataLoader:
+    #     print('Decrease privacy')
+    #     ## set current generator eps as high bound
+    #     self.eps_high_priv_bound = self.current_generator.get_dp_epsilon()
 
-        if self.eps_low_priv_bound >= self.eps_high_priv_bound:
-            ## No improvements can be made
-            return None
+    #     if self.eps_low_priv_bound >= self.eps_high_priv_bound:
+    #         ## No improvements can be made
+    #         return None
         
-        ## Decrease privacy by increasing epsilon
-        self.set_new_eps(round(self.current_generator.get_dp_epsilon() + ((self.eps_low_priv_bound - self.current_generator.get_dp_epsilon()) * amount), 1))
+    #     ## Decrease privacy by increasing epsilon
+    #     self.set_new_eps(round(self.current_generator.get_dp_epsilon() + ((self.eps_low_priv_bound - self.current_generator.get_dp_epsilon()) * amount), 1))
 
-        print(self.current_generator.get_dp_epsilon())
+    #     print(self.current_generator.get_dp_epsilon())
         
-        new_syn = self.current_generator.generate(count=self.count)
+    #     new_syn = self.current_generator.generate(count=self.count)
 
-        ## Check if the privacy decreased
-        new_privacy = self.privacy_calc.calculatePrivacy(self.real, new_syn)
-        if new_privacy < self.current_privacy:
-            self.current_privacy = new_privacy
-            return new_syn
-        else:
-            ## Further decrease the privacy
-            return self.decrease_privacy(syn, amount * 2)
+    #     ## Check if the privacy decreased
+    #     new_privacy = self.privacy_calc.calculatePrivacy(self.real, new_syn)
+    #     if new_privacy < self.current_privacy:
+    #         self.current_privacy = new_privacy
+    #         return new_syn
+    #     else:
+    #         ## Further decrease the privacy
+    #         return self.decrease_privacy(syn, amount * 2)
 
     def increase_utility(self, syn: DataLoader, amount: float) -> DataLoader:
         print('Increase utility')
@@ -104,30 +104,30 @@ class NewGenerator(FineTuningMethod):
             ## Further increase the utility
             return self.increase_utility(syn, amount * 2)
 
-    def decrease_utility(self, syn: DataLoader, amount: float) -> DataLoader:
-        print('Decrease utility')
-        ## set current generator eps as low bound
-        self.eps_high_util_bound = self.current_generator.get_dp_epsilon()
+    # def decrease_utility(self, syn: DataLoader, amount: float) -> DataLoader:
+    #     print('Decrease utility')
+    #     ## set current generator eps as low bound
+    #     self.eps_high_util_bound = self.current_generator.get_dp_epsilon()
 
-        if self.eps_high_util_bound <= self.eps_low_util_bound:
-            ## No improvements can be made
-            return None
+    #     if self.eps_high_util_bound <= self.eps_low_util_bound:
+    #         ## No improvements can be made
+    #         return None
         
-        ## Decrease utility by decreasing epsilon
-        self.set_new_eps(self.current_generator.get_dp_epsilon() - ((self.current_generator.get_dp_epsilon() - self.eps_low_util_bound) * amount))
+    #     ## Decrease utility by decreasing epsilon
+    #     self.set_new_eps(self.current_generator.get_dp_epsilon() - ((self.current_generator.get_dp_epsilon() - self.eps_low_util_bound) * amount))
 
-        print(self.current_generator.get_dp_epsilon())
+    #     print(self.current_generator.get_dp_epsilon())
 
-        new_syn = self.current_generator.generate(count=self.count)
+    #     new_syn = self.current_generator.generate(count=self.count)
 
-        ## Check if the utility decreased
-        new_utility = self.utility_calc.calculateUtility(self.real, new_syn)
-        if new_utility < self.current_utility:
-            self.current_utility = new_utility
-            return new_syn
-        else:
-            ## Further decrease the utility
-            return self.decrease_utility(syn, amount * 2)
+    #     ## Check if the utility decreased
+    #     new_utility = self.utility_calc.calculateUtility(self.real, new_syn)
+    #     if new_utility < self.current_utility:
+    #         self.current_utility = new_utility
+    #         return new_syn
+    #     else:
+    #         ## Further decrease the utility
+    #         return self.decrease_utility(syn, amount * 2)
         
     def set_new_eps(self, eps: float):
         if not self.check_saved_generators(eps):

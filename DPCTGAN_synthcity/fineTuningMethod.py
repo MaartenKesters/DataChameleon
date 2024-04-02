@@ -59,12 +59,9 @@ class FineTuningMethod():
                         priv_satisfied = True
                         break
 
-                    ## Check in what direction the privacy has to change
-                    result = priv_metric_req.change(priv_val_req, val)
-                    if result['direction'] == 'up':
-                        new = self.increase_privacy(syn, result['amount'])
-                    elif result['direction'] == 'down':
-                        new = self.decrease_privacy(syn, result['amount'])
+                    ## Check how much the privacy has to change
+                    amount = priv_metric_req.amount(priv_val_req, val)
+                    new = self.increase_privacy(syn, amount)
 
                     ## If new is None, no improvements are made
                     if new is not None:
@@ -87,12 +84,9 @@ class FineTuningMethod():
                         util_satisfied = True
                         break
                     
-                    ## Check in what direction the utility has to change
-                    result = util_metric_req.change(util_val_req, val)
-                    if result['direction'] == 'up':
-                        new = self.increase_utility(syn, result['amount'])
-                    elif result['direction'] == 'down':
-                        new = self.decrease_utility(syn, result['amount'])
+                    ## Check how much the utility has to change
+                    amount = util_metric_req.amount(util_val_req, val)
+                    new = self.increase_utility(syn, amount)
 
                     ## If new is None, no improvements are made
                     if new is not None:
@@ -108,16 +102,6 @@ class FineTuningMethod():
             print('calc util req: ' + str(util_val))
             if (priv_metric_req.satisfied(priv_val_req, priv_val, error_range) or priv_val > priv_val_req) and (util_metric_req.satisfied(util_val_req, util_val, error_range) or util_val > util_val_req):
                 return syn.dataframe()
-            
-            ## Merge privacy and utility fine tuned data
-            # if priv_metric_req is not None and util_metric_req is not None:
-            #     priv_syn = priv_syn.dataframe().sample(int(count/2))
-            #     util_syn = util_syn.dataframe().sample(int(count/2))
-            #     return pd.concat([priv_syn, util_syn], ignore_index=True)
-            # elif priv_metric_req is not None:
-            #     return priv_syn.dataframe()
-            # elif util_metric_req is not None:
-            #     return util_syn.dataframe()
                 
         return None
 
@@ -129,14 +113,14 @@ class FineTuningMethod():
     def increase_privacy(self, syn: DataLoader, amount: float) -> DataLoader:
         pass
 
-    @abstractmethod
-    def decrease_privacy(self, syn: DataLoader, amount: float) -> DataLoader:
-        pass
+    # @abstractmethod
+    # def decrease_privacy(self, syn: DataLoader, amount: float) -> DataLoader:
+    #     pass
 
     @abstractmethod
     def increase_utility(self, syn: DataLoader, amount: float) -> DataLoader:
         pass
 
-    @abstractmethod
-    def decrease_utility(self, syn: DataLoader, amount: float) -> DataLoader:
-        pass
+    # @abstractmethod
+    # def decrease_utility(self, syn: DataLoader, amount: float) -> DataLoader:
+    #     pass

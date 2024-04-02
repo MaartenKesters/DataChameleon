@@ -180,12 +180,9 @@ class Plugin(Serializable, metaclass=ABCMeta):
     def get_privacy_level(self) -> PrivacyLevels:
         return self.privacy_level
     
+    ## Abstract methods that each plugin should implement
     @abstractmethod
     def set_privacy_level(self, level: PrivacyLevels):
-        ...
-    
-    @abstractmethod
-    def get_privacy_budget(self) -> float:
         ...
 
     @abstractmethod
@@ -197,16 +194,27 @@ class Plugin(Serializable, metaclass=ABCMeta):
         ...
 
     @abstractmethod
-    def get_encoder(self):
-        ...
-
-    @abstractmethod
     def save_model(self, path):
         ...
     
     @abstractmethod
     def load_model(self, path):
         ...
+    
+    def encode(self, X: DataLoader):
+        if isinstance(X, (pd.DataFrame)):
+            X = GenericDataLoader(X)
+
+        if X.is_tabular():
+            X, self._data_encoders = X.encode(self._data_encoders)
+
+        return X
+    
+    def decode(self, X: DataLoader):
+        if X.is_tabular():
+            if self._data_encoders is not None:
+                X = X.decode(self._data_encoders)
+        return X
 
     @validate_arguments(config=dict(arbitrary_types_allowed=True))
     def fit(self, X: Union[DataLoader, pd.DataFrame], *args: Any, **kwargs: Any) -> Any:
@@ -272,7 +280,7 @@ class Plugin(Serializable, metaclass=ABCMeta):
         )
 
         if X.is_tabular():
-            X, self._data_encoders = X.encode()
+            # X, self._data_encoders = X.encode()
             if self.compress_dataset:
                 X_hash = X.hash()
                 bkp_file = (
@@ -303,115 +311,6 @@ class Plugin(Serializable, metaclass=ABCMeta):
         Args:
             X: DataLoader.
                 The reference dataset..
-            cond: Optional, Union[pd.DataFrame, pd.Series, np.ndarray]
-                Training Conditional
-        Returns:
-            self
-        """
-        ...
-
-    @validate_arguments(config=dict(arbitrary_types_allowed=True))
-    def update(self, X: Union[DataLoader, pd.DataFrame], increase_privacy: bool = False, *args: Any, **kwargs: Any) -> Any:
-        """Updating method the synthetic data plugin.
-
-        Args:
-            X: DataLoader.
-                The reference dataset.
-            increase_privacy: bool
-                True if the plugin needs to be fine tuned by increasing the privacy.
-            cond: Optional, Union[pd.DataFrame, pd.Series, np.ndarray]
-                Optional Training Conditional.
-                The training conditional can be used to control to output of some models, like GANs or VAEs. The content can be anything, as long as it maps to the training dataset X.
-                Usage example:
-                    >>> from sklearn.datasets import load_iris
-                    >>> from synthcity.plugins.core.dataloader import GenericDataLoader
-                    >>> from synthcity.plugins.core.constraints import Constraints
-                    >>>
-                    >>> # Load in `test_plugin` the generative model of choice
-                    >>> # ....
-                    >>>
-                    >>> X, y = load_iris(as_frame=True, return_X_y=True)
-                    >>> X["target"] = y
-                    >>>
-                    >>> X = GenericDataLoader(X)
-                    >>> test_plugin.fit(X, cond=y)
-                    >>>
-                    >>> count = 10
-                    >>> X_gen = test_plugin.generate(count, cond=np.ones(count))
-                    >>>
-                    >>> # The Conditional only optimizes the output generation
-                    >>> # for GANs and VAEs, but does NOT guarantee the samples
-                    >>> # are only from that condition.
-                    >>> # If you want to guarantee that output contains only
-                    >>> # "target" == 1 samples, use Constraints.
-                    >>>
-                    >>> constraints = Constraints(
-                    >>>     rules=[
-                    >>>         ("target", "==", 1),
-                    >>>     ]
-                    >>> )
-                    >>> X_gen = test_plugin.generate(count,
-                    >>>         cond=np.ones(count),
-                    >>>         constraints=constraints
-                    >>>        )
-                    >>> assert (X_gen["target"] == 1).all()
-
-        Returns:
-            self
-        """
-        if not self.fitted:
-            return self.fit(X, increase_privacy, *args, **kwargs)
-
-        if isinstance(X, (pd.DataFrame)):
-            X = GenericDataLoader(X)
-
-        if "cond" in kwargs and kwargs["cond"] is not None:
-            self.expecting_conditional = True
-
-        enable_reproducible_results(self.random_state)
-
-        self.data_info = X.info()
-
-        self._schema = Schema(
-            data=X,
-            sampling_strategy=self.sampling_strategy,
-            random_state=self.random_state,
-        )
-
-        if X.is_tabular():
-            X, self._data_encoders = X.encode()
-            if self.compress_dataset:
-                X_hash = X.hash()
-                bkp_file = (
-                    self.workspace
-                    / f"compressed_df_{X_hash}_{platform.python_version()}.bkp"
-                )
-                if not bkp_file.exists():
-                    X_compressed_context = X.compress()
-                    save_to_file(bkp_file, X_compressed_context)
-
-                X, self.compress_context = load_from_file(bkp_file)
-
-        self._training_schema = Schema(
-            data=X,
-            sampling_strategy=self.sampling_strategy,
-            random_state=self.random_state,
-        )
-
-        output = self._update(X, increase_privacy=increase_privacy, *args, **kwargs)
-        self.fitted = True
-
-        return output
-
-    @abstractmethod
-    def _update(self, X: DataLoader, increase_privacy: bool = False, *args: Any, **kwargs: Any) -> "Plugin":
-        """Internal training method the synthetic data plugin.
-
-        Args:
-            X: DataLoader.
-                The reference dataset.
-            increase_privacy: bool
-                True if the plugin needs to be fine tuned by increasing the privacy.
             cond: Optional, Union[pd.DataFrame, pd.Series, np.ndarray]
                 Training Conditional
         Returns:
@@ -500,8 +399,8 @@ class Plugin(Serializable, metaclass=ABCMeta):
         if X_syn.is_tabular():
             if self.compress_dataset:
                 X_syn = X_syn.decompress(self.compress_context)
-            if self._data_encoders is not None:
-                X_syn = X_syn.decode(self._data_encoders)
+            # if self._data_encoders is not None:
+            #     X_syn = X_syn.decode(self._data_encoders)
 
         # The dataset is decompressed here, we can use the public schema
         gen_constraints = self.schema().as_constraints()
