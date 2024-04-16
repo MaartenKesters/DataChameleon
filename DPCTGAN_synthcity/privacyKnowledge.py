@@ -1,4 +1,6 @@
 from abc import abstractmethod
+from typing import List
+
 from synthcity.plugins.core.dataloader import DataLoader
 
 from synthcity.metrics.eval_sanity import NearestSyntheticNeighborDistance
@@ -15,7 +17,7 @@ CLASS_NAME_FILE = {
     "singlingout" : "SinglingOut"
 }
 
-class PrivacyKnowledge():
+class PrivacyMetric():
     """
     Base class for all privacy metrics. Each privacy class holds the knowledge of the privacy metric. The privacy metrics can be used to specify the requirements of the synthetic data or during the fine tuning process of the data.
 
@@ -34,8 +36,9 @@ class PrivacyKnowledge():
         pass
     
     def satisfied(self, required: float, val: float, error: float) -> bool:
-        # if val >= required - error and val <= required + error:
-        if (self.privacy() == 1 and val >= required - error) or ((self.privacy() == 0 and val <= required + error)):
+        # if (self.privacy() == 1 and val >= required - error) or ((self.privacy() == 0 and val <= required + error)):
+        ## Satisfied within interval
+        if val >= required - error and val <= required + error:
             return True
         else:
             return False
@@ -53,7 +56,7 @@ class PrivacyKnowledge():
         pass
     
     @abstractmethod
-    def range(self) -> [float]:
+    def range(self) -> List[float]:
         pass
     
     @abstractmethod
@@ -68,7 +71,16 @@ class PrivacyKnowledge():
             amount = (val - required) / (self.range()[1] - self.range()[0])
             return amount
     
-class NearestNeighborDistance(PrivacyKnowledge):
+    def print_info(self) -> str:
+        result = ""
+        for _, m in CLASS_NAME_FILE.items():
+            metric = globals().get(m)
+            result = result + "###"
+            result = result + "Metric: " + metric.name() + "\n"
+            result = result + "Information: " + metric.information() + "\n"
+        return result
+    
+class NearestNeighborDistance(PrivacyMetric):
     def __init__(self) -> None:
         self.evaluator = NearestSyntheticNeighborDistance()
         self.rangeLow = 0
@@ -85,13 +97,13 @@ class NearestNeighborDistance(PrivacyKnowledge):
     def calculate(self, X_gt: DataLoader, X_syn: DataLoader) -> float:
         return self.evaluator.evaluate(X_gt, X_syn).get('mean')
     
-    def range(self) -> [float]:
+    def range(self) -> List[float]:
         return [self.rangeLow, self.rangeHigh]
     
     def privacy(self) -> int:
         return 1
         
-class Identifiability(PrivacyKnowledge):
+class Identifiability(PrivacyMetric):
     def __init__(self) -> None:
         self.evaluator = IdentifiabilityScore()
         self.rangeLow = 0
@@ -108,13 +120,13 @@ class Identifiability(PrivacyKnowledge):
     def calculate(self, X_gt: DataLoader, X_syn: DataLoader) -> float:
         return self.evaluator.evaluate(X_gt, X_syn).get('score_OC')
     
-    def range(self) -> [float]:
+    def range(self) -> List[float]:
         return [self.rangeLow, self.rangeHigh]
     
     def privacy(self) -> int:
         return 0
     
-class DataLeakage(PrivacyKnowledge):
+class DataLeakage(PrivacyMetric):
     def __init__(self) -> None:
         self.evaluator = DataLeakageMLP()
         self.rangeLow = 0
@@ -133,13 +145,13 @@ class DataLeakage(PrivacyKnowledge):
             return 0
         return self.evaluator.evaluate(X_gt, X_syn).get('mean')
     
-    def range(self) -> [float]:
+    def range(self) -> List[float]:
         return [self.rangeLow, self.rangeHigh]
     
     def privacy(self) -> int:
         return 0
     
-class SinglingOut(PrivacyKnowledge):
+class SinglingOut(PrivacyMetric):
     def __init__(self) -> None:
         self.rangeLow = 0
         self.rangeHigh = 1.0
@@ -158,7 +170,7 @@ class SinglingOut(PrivacyKnowledge):
         risk = self.evaluator.risk()
         return risk.value
     
-    def range(self) -> [float]:
+    def range(self) -> List[float]:
         return [self.rangeLow, self.rangeHigh]
     
     def privacy(self) -> int:

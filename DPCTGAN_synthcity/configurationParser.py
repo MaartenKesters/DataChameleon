@@ -10,19 +10,15 @@ class ConfigHandler():
         self.config.read('config.ini')
 
     def parseConfigs(self):
-        self.parseRequirements()
+        self.parseGenerator()
         self.parseFineTuningMetrics()
         self.parseFineTuningMethod()
         self.parseEncoding()
         self.parseEvaluationMetrics()
 
-    def parseRequirements(self):
-        self.privacyLevel = self.config.get('Requirements', 'level')
-        self.range = self.config.get('Requirements', 'range')
-        self.privacyMetricRequirement = self.config.get('Requirements', 'privacymetric')
-        self.privacyValueRequirement = self.config.get('Requirements', 'privacyrequirement')
-        self.utilityMetricRequirement = self.config.get('Requirements', 'utilitymetric')
-        self.utilityValueRequirement = self.config.get('Requirements', 'utilityrequirement')
+    def parseGenerator(self):
+        self.pluginModule = self.config.get('Plugin', 'module')
+        self.pluginClass = self.config.get('Plugin', 'className')
     
     def parseFineTuningMetrics(self):
         self.privacyMetric1 = self.config.get('Metrics', 'privacymetric1')
@@ -57,23 +53,11 @@ class ConfigHandler():
         self.evalUtilityMetric2 = self.config.get('Evaluation', 'utilitymetric2')
         self.evalUtilityMetric3 = self.config.get('Evaluation', 'utilitymetric3')
     
-    def getPrivacyLevel(self):
-        return self.privacyLevel
+    def getPluginModule(self):
+        return self.pluginModule
     
-    def getRange(self):
-        return self.range
-
-    def getPrivacyMetricRequirement(self):
-        return self.privacyMetricRequirement
-    
-    def getPrivacyValueRequirement(self):
-        return self.privacyValueRequirement
-    
-    def getUtilityMetricRequirement(self):
-        return self.utilityMetricRequirement
-    
-    def getUtilityValueRequirement(self):
-        return self.utilityValueRequirement
+    def getPluginClass(self):
+        return self.pluginClass
     
     def getPrivacyMetrics(self):
         return {'metric1':self.privacyMetric1, 'weight1':self.privacyMetric1Weight, 'metric2':self.privacyMetric2, 'weight2':self.privacyMetric2Weight, 'metric3':self.privacyMetric3, 'weight3':self.privacyMetric3Weight}

@@ -12,9 +12,10 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import jaccard_score
 
 from chameleon import Chameleon
-from dpctgan import DPCTGANPlugin
-from adsgan import AdsGANPlugin
-from privacyLevel import PrivacyLevels
+from protectionLevel import ProtectionLevel
+from privacyKnowledge import NearestNeighborDistance
+from utilityKnowledge import InverseKLDivergenceMetric
+from dpgan import DPGANPlugin
 
 from ucimlrepo import fetch_ucirepo
 
@@ -22,30 +23,17 @@ def main():
     chameleon = Chameleon()
 
     chameleon.handleConfigs()
-    chameleon.handleSynDataRequirements()
 
-    chameleon.add_user("User1", True)
-    chameleon.add_user("User2", False, PrivacyLevels.LOW)
-    chameleon.add_user("User3", False, PrivacyLevels.SECRET)
+    print("##########")
+    print("TRAINING PHASE")
+    print('##########')
 
-    ## Create baseline models for chameleon
-    # model1 = DPCTGANPlugin(privacy_level=PrivacyLevels.LOW)
-    # model2 = DPCTGANPlugin(privacy_level=PrivacyLevels.MEDIUM)
-    # model3 = DPCTGANPlugin(privacy_level=PrivacyLevels.HIGH)
-    # model4 = DPCTGANPlugin(privacy_level=PrivacyLevels.SECRET)
-    model1 = AdsGANPlugin(privacy_level=PrivacyLevels.LOW)
-    model2 = AdsGANPlugin(privacy_level=PrivacyLevels.MEDIUM)
-    model3 = AdsGANPlugin(privacy_level=PrivacyLevels.HIGH)
-    model4 = AdsGANPlugin(privacy_level=PrivacyLevels.SECRET)
-    chameleon.add_generator(model1)
-    chameleon.add_generator(model2)
-    chameleon.add_generator(model3)
-    chameleon.add_generator(model4)
+    privacy_metric = NearestNeighborDistance()
+    utility_metric = InverseKLDivergenceMetric()
 
+    ## Get the dataset
     cwd = os.getcwd()
 
-
-    ## Get the dataset from the user
     # correct_file = False
     # while not correct_file:
     #     file_name = input('Enter a file name: ')
@@ -84,20 +72,13 @@ def main():
     # data = X.sample(n=1000)
     # data.drop(data[data.apply(lambda x: '?' in x.values, axis=1)].index, inplace=True)
 
-    # data2 = X.sample(n=1000)
-
-    # sim = jaccard_score(data, data2)
-    # print(sim)
-
-
     ## Get the iris dataset
     data, y = load_iris(as_frame=True, return_X_y=True)
     data, test = train_test_split(data, test_size=0.2)
-    
+
     print(data)
 
-
-    ## Get the sensitive columns from the user
+    ## Get the sensitive columns
     print('Give the sensitive colums, one by one. If there are no sensitive colums left, type: /')
     sensitive_features = []
     more_sensitive_features = True
@@ -113,32 +94,38 @@ def main():
 
 
     ## Create data loader
-    chameleon.load_real_data(data, sensitive_features=sensitive_features)
+    chameleon.load_private_data(data, sensitive_features=sensitive_features)
     # chameleon.encode_data(data_loader.dataframe())
 
-    ## Train baseline models of chameleon
-    chameleon.train_generators()
+    ## Show available metrics
+    chameleon.show_metrics()
 
-    ## Get the requirements for the synthetic data from the user
-    # print(" ")
-    # print('Now, indicate the privacy requirements for the synthetic data. \nThe privacy metric that is used to specify the requirements is: ' + chameleon.get_privacy_level_metric().name() + '\n-- info about the metric: ' + chameleon.get_privacy_level_metric().info() + '\nThese are the border values between each privacy level: \n - LOW-MEDIUM: ' + str(chameleon.get_privacy_level_metric().borders()[0]) + '\n - MEDIUM-HIGH: ' + str(chameleon.get_privacy_level_metric().borders()[1]) + '\n - HIGH-SECRET: ' + str(chameleon.get_privacy_level_metric().borders()[2]))
-    # requirement_value = input('Enter the value (achieved with the above metric) of the required privacy: ')
-    # requirement_level = chameleon.get_requirement_level(float(requirement_value))
+    ## Create new protection levels for different use cases
+    # level1 = chameleon.create_protection_level("Level 1", privacy_metric=privacy_metric, privacy_val=0.4, utility_metric=utility_metric, utility_val=0.4, range=0.1)
+    level2 = chameleon.create_protection_level("Level 2", epsilon=3.0)
+    level3 = chameleon.create_protection_level("Level 3", epsilon=2.0)
+    level4 = chameleon.create_protection_level("Level 4", epsilon=1.0)
+    level5 = chameleon.create_protection_level("Level 5", epsilon=0.5)
 
+    ## Create new baseline generators
+    chameleon.create_generator(protection_level=level2)
+    chameleon.create_generator(protection_level=level3)
+    chameleon.create_generator(protection_level=level4)
+    chameleon.create_generator(protection_level=level5)
+    # chameleon.add_generator(generator=DPGANPlugin(epsilon=1.0), protection_level=level3)
 
-    ## Generate synthetic data
+    print("##########")
+    print("OPERATIONS PHASE")
+    print('##########')
 
-    # syn_data = chameleon.generate_synthetic_data("User2", PrivacyLevels.MEDIUM, 1000, privacy_func=privacy_functions.nearestNeighborDistanceMetric)
-    # print(syn_data)
+    ## Show protection levels available for a use case
+    chameleon.show_protection_levels()
 
-    # syn_data = chameleon.generate_synthetic_data("User2", PrivacyLevels.MEDIUM, 1000, utility_func=utility_functions.inverseKLDivergenceMetric)
-    # print(syn_data)
+    ## Generate synthetic data for a use case with protection level
+    syn = chameleon.generate_synthetic_data(size=1000, protection_level=level2)
+    syn = chameleon.generate_synthetic_data(size=1000, protection_level=chameleon.create_protection_level('Level 6', privacy_metric=privacy_metric, privacy_val=0.4, utility_metric=utility_metric, utility_val=0.4, range=0.1))
 
-    syn_data = chameleon.generate_synthetic_data("User2", 1000)
-    print(syn_data)
-
-    # syn_data = chameleon.generate_synthetic_data("User2", PrivacyLevels.MEDIUM, 1000)
-    # print(syn_data)
+    print(syn)
 
 
 if __name__ == '__main__':

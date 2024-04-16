@@ -31,8 +31,6 @@ class PrivacyCalculator():
         value = value + self.normalize(self.metric1, self.metric1.calculate(X_gt, X_syn)) * self.weight1
         if self.metric2 is not None:
             value = value + self.normalize(self.metric2, self.metric2.calculate(X_gt, X_syn)) * self.weight2
-        else: 
-            return value
         if self.metric3 is not None:
             value = value + self.normalize(self.metric3, self.metric3.calculate(X_gt, X_syn)) * self.weight3
         print('calc priv: ' + str(value))

@@ -1,11 +1,11 @@
 ## Synthcity imports
 # from synthcity.plugins.core.plugin import Plugin
-from synthcity.plugins.core.dataloader import GenericDataLoader
+from synthcity.plugins.core.dataloader import DataLoader, GenericDataLoader
 from synthcity.plugins.core.models.tabular_encoder import TabularEncoder
 
-from user import User
-from privacyLevel import PrivacyLevels
+from protectionLevel import ProtectionLevel
 from plugin import Plugin
+from generatorCreator import GeneratorCreator
 
 import os
 import pandas as pd
@@ -13,13 +13,15 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from importlib import import_module
 import pickle as pickle
+from typing import Optional, Union
+import threading
 
 from configurationParser import ConfigHandler
-import privacyKnowledge
-import utilityKnowledge
+from privacyKnowledge import PrivacyMetric
+from utilityKnowledge import UtilityMetric
 from privacyCalculator import PrivacyCalculator
 from utilityCalculator import UtilityCalculator
-from evaluationReport import EvaluationReport
+from evaluationInfo import EvaluationInfo
 
 from dataEncoderDecoder import DataEncoderDecoder
 
@@ -27,68 +29,41 @@ from dataEncoderDecoder import DataEncoderDecoder
 class Chameleon():
     """
     Main class for the data chameleon.
-
-    Constructor Args:
-        
+    
     """
 
     def __init__(self):
         self.generators = {}
-        # self.syn_data = {}
-        self.users = []
-        # self.synthetic_data_requests = []
+        self.protection_levels = {}
+        self.syn_data = {}
+
         self.data_encoders = None
 
         self.configparser = ConfigHandler()
+
         self.privacyCalculator = PrivacyCalculator()
         self.utilityCalculator = UtilityCalculator()
-        self.evaluationReport = EvaluationReport()
-
-        # self.encoder = DataEncoderDecoder()
-
-        # self.syn_data_length = 1000
+        self.evaluationInfo = EvaluationInfo()
 
         self.handleConfigs()
         
     def handleConfigs(self):
         self.configparser.parseConfigs()
-        self.handleSynDataRequirements()
+        self.handleGenerator()
         self.handleFineTuningMetrics()
         self.handleFineTuningMethod()
         self.handleEncoding()
         self.handleEvaluationMetrics()
 
-    def handleSynDataRequirements(self):
-        ## Get privacy level
-        level = int(self.configparser.getPrivacyLevel())
-        self.privacyLevel = self.getPrivacyLevel(level)
-        
-        ## Get privacy metric used to define the requirements of syn data and instantiate the right class
-        priv_req = self.configparser.getPrivacyMetricRequirement()
-        if priv_req == 'none':
-            self.privacyMetricRequirement = None
-            self.privacyValueRequirement = None
+    def handleGenerator(self):
+        ## Get plugin class generator
+        module = import_module(self.configparser.getPluginModule())
+        className = self.configparser.getPluginClass()
+        if module == 'none':
+            raise ValueError("Specify the module name and class name of the plugin in the config file.")
         else:
-            self.privacyMetricRequirement = getattr(privacyKnowledge, privacyKnowledge.CLASS_NAME_FILE[priv_req])()
-            ## Get the required value of privacy metric of the syn data
-            self.privacyValueRequirement = float(self.configparser.getPrivacyValueRequirement())
-        
-        ## Get utility metric used to define the requirements of syn data and instantiate the right class
-        util_req = self.configparser.getUtilityMetricRequirement()
-        if util_req == 'none':
-            self.utilityMetricRequirement = None
-            self.utilityValueRequirement = None
-        else:
-            self.utilityMetricRequirement = getattr(utilityKnowledge, utilityKnowledge.CLASS_NAME_FILE[util_req])()
-            ## Get the required value of utility metric of the syn data
-            self.utilityValueRequirement = float(self.configparser.getUtilityValueRequirement())
-        
-        ## Get the allow error range around the required privacy and utility values
-        range = self.configparser.getRange()
-        if range == 'none':
-            self.requirementRrange = None
-        else:
-            self.requirementRrange = float(range)
+            self.pluginModule = module
+            self.pluginClass = getattr(module, className)
     
     def handleFineTuningMetrics(self):
         ## Get privacy metrics with weights
@@ -106,7 +81,7 @@ class Chameleon():
             self.fineTuningModule = None
         else:
             self.fineTuningModule = module
-            self.fineTuningInstance = getattr(module, className)(self.generators, self.privacyCalculator, self.utilityCalculator)
+            self.fineTuningInstance = getattr(module, className)(self.privacyCalculator, self.utilityCalculator)
 
     def handleEncoding(self):
         ## Get information if we need to encode the data or not
@@ -115,178 +90,184 @@ class Chameleon():
     def handleEvaluationMetrics(self):
         ## Get privacy and utility metrics for evaluation report
         metrics = self.configparser.getEvaluationMetrics()
-        self.evaluationReport.setMetrics(metrics)
-
-
-    def getPrivacyLevel(self, level: int) -> PrivacyLevels:
-        if level == 1:
-            return PrivacyLevels.LOW
-        elif level == 2:
-            return PrivacyLevels.MEDIUM
-        elif level == 3:
-            return PrivacyLevels.HIGH
-        else:
-            return PrivacyLevels.SECRET
+        self.evaluationInfo.setMetrics(metrics)
     
-    def load_real_data(self, data, sensitive_features):
+    def load_private_data(self, data, sensitive_features):
         self.original_data = data
         self.sensitive_features = sensitive_features
         self.aux_cols = list(data.sample(n=3,axis='columns').columns.values)
         self.train_data, self.control_data = train_test_split(data, test_size=0.2)
 
         ## Create dataloader
-        self.loader = GenericDataLoader(self.train_data, sensitive_features=sensitive_features)
+        self.private_data = GenericDataLoader(self.train_data, sensitive_features=sensitive_features)
 
         ## Encode real data
         if self.encode:
-            self.encode_data(self.loader)
+            self.encode_data(self.private_data)
     
     def create_data_loader(self, data):
         return GenericDataLoader(data, sensitive_features=self.sensitive_features)
     
-    # def fit_encoder(self, data):
-    #     ## Create data encoder and fit to real data
-    #     self.encoder = TabularEncoder(categorical_limit=30).fit(data.dataframe())
-    
-    def encode_data(self, data):
-        # self.real_encoded = self.encoder.transform(data.dataframe())
-        # self.real_encoded_loader = GenericDataLoader(self.real_encoded, sensitive_features=self.sensitive_features)
-
+    def encode_data(self, data: DataLoader):
         ## Use encoder of Dataloader class
-        self.loader_encoded, self.data_encoders = data.encode()
+        self.private_data, self.private_data_encoders = data.encode()
 
         print('### encoded')
-        print(self.loader_encoded)
+        print(self.private_data)
     
-    def decode_data(self, data):
-        # decoded = self.encoder.inverse_transform(encoded.dataframe())
-
+    def decode_data(self, data: DataLoader):
         ## Use decoder of Dataloader class
-        if self.data_encoders is not None:
-            data = data.decode(self.data_encoders)
+        if self.private_data_encoders is not None:
+            decoded = data.decode(self.private_data_encoders)
 
         print('### decoded')
-        print(data)
-        return data
-
-    def add_user(self, name, owner, privacy_level = PrivacyLevels.SECRET):
-        new_user = User(name, owner, privacy_level)
-        self.users.append(new_user)
-        
-    def set_user_privacy_level(self, name, level):
-        for user in self.users:
-            if user.get_name() == name:
-                user.set_privacy_level(level)
-                return
-        raise ValueError("There does not exist a user with this name")
+        print(decoded)
+        return decoded
     
-    def get_user(self, name):
-        for user in self.users:
-            if user.get_name() == name:
-                return user
+    def show_metrics(self):
+        priv = PrivacyMetric()
+        util = UtilityMetric()
+        result = "---Privacy metrics---\n"
+        result = result + priv.print_info()
+        result = result + "---Utility metrics---\n"
+        result = result + util.print_info()
+        print(result)
+    
+    ## Create a data protection level for a new use case
+    def create_protection_level(self, protection_name: str, epsilon: Optional[float] = None, privacy_metric: Optional[PrivacyMetric] = None, privacy_val: Optional[float] = None, utility_metric: Optional[UtilityMetric] = None, utility_val: Optional[float] = None, range: Optional[float] = None):
+        return ProtectionLevel(protection_name, epsilon, privacy_metric, privacy_val, utility_metric, utility_val, range)
+    
+    ## Show all data protection levels for the use cases added to the system
+    def show_protection_levels(self):
+        result = "---Protection levels--- \n"
+        for name, level in self.protection_levels.items():
+            result = result + level.show_level()
+            result = result + "----\n"
+        print(result)
+    
+    ## Manually add a new generator to the system for a specific use case (specific privacy/utility), new generator should be tested manually for the requirement
+    def add_generator(self, generator: Plugin, protection_level: ProtectionLevel):
+        if not generator.fitted:
+            generator.fit(self.private_data)
+        self.generators[protection_level.name] = generator
+        self.protection_levels[protection_level.name] = protection_level
+        ## Store generator
+        generator.save_model()
+        ## Generate information file of synthetic data generator
+        synthetic_data = self.generate(generator, 10000)
+        self.evaluationInfo.generateInfo(self.private_data, synthetic_data, generator, protection_level)
 
-    def add_generator(self, generator):
-        if isinstance(generator, Plugin):
-            self.generators[generator.get_privacy_level().level] = generator
-            # self.syn_data[generator.get_privacy_level().level] = pd.DataFrame
+    ## Create new generator to the system for specific use case (specific privacy/utility), system autonomously finds a suitable generator
+    def create_generator(self, protection_level: ProtectionLevel):
+        if protection_level.epsilon is None and (protection_level.privacy_metric is None or protection_level.utility_metric is None):
+            raise ValueError("Data protection level must have an epsilon value or privacy and utility metrics and values")
+        ## Create a generator that generates synthetic data that meets the requirements
+        generatorCreator = GeneratorCreator(self.private_data, self.pluginClass, self.privacyCalculator, self.utilityCalculator)
+        generator = generatorCreator.create_generator(self.generators, protection_level)
+        if generator is not None:
+            self.generators[protection_level.name] = generator
+            self.protection_levels[protection_level.name] = protection_level
+            ## Store generator
+            generator.save_model()
+            ## Generate information file of synthetic data generator
+            synthetic_data = self.generate(generator, 10000)
+            self.evaluationInfo.generateInfo(self.private_data, synthetic_data, generator, protection_level)
         else:
-            raise ValueError("generator must be an instance of the Plugin class")
+            raise ValueError('Automatically creating a generator for this protection level did not work. try to add it manually.')
 
-    def train_generators(self):
-        print(" ")
-        ## Fit generators
-        for level, generator in self.generators.items():
-            if self.encode:
-                generator.fit(self.loader_encoded)
-            else:
-                generator.fit(self.loader)
-
-        ## Generate synthetic data such that the data can be delivered faster on request
-        # for level, generator in self.generators.items():
-        #     self.syn_data[level] = self.generate(generator, self.syn_data_length)
-
-    def generate(self, generator, count):
+    def generate(self, generator, size) -> DataLoader:
         try:
-            synthetic_data = generator.generate(count = count)
+            synthetic_data = generator.generate(count = size)
         except RuntimeError as e:
             if e.message == 'Fit the generator first':
-                if self.encode:
-                    generator.fit(self.loader_encoded)
-                else:
-                    generator.fit(self.loader)
-                synthetic_data = generator.generate(count = count)
+                generator.fit(self.private_data)
+                synthetic_data = generator.generate(count = size)
             else:
                 raise RuntimeError("Something went wrong, try adding the generators again")
         return synthetic_data
 
-    def generate_synthetic_data(self, user_name: str, count: int):
-        user = self.get_user(user_name)
-        if user is None:
-            raise RuntimeError("There is no user with this name.")
-        
-        ## Find the user's privacy level
-        user_privacy_level = user.get_privacy_level()
-
-        ## Check if user is allowed to request data from the specified privacy level (only allowed to request data more private than their own privacy level)
-        if user_privacy_level.level > self.privacyLevel.level:
-            raise RuntimeError("The privacy level of the user must be lower than the privacy level of the requested data.")
-
-        ## Find the appropriate generator based on the requested privacy level
-        if self.privacyLevel.level in self.generators:
-            suitable_generator = self.generators.get(self.privacyLevel.level)
-        else:
-            raise RuntimeError("No suitable generator found, first add generators for all privacy levels")
-        
+    def generate_synthetic_data(self, size: int, protection_level: Union[str, ProtectionLevel]) -> pd.DataFrame:
         print(" ")
-        print("---Generating synthetic data for privacy level: " + str(self.privacyLevel) + "---")
-
-        ## Generate data
-        synthetic_data = self.generate(suitable_generator, count)
-
-        ## TODO remove
-        print('### generated encoded syn')
-        print(synthetic_data.dataframe())
-        # print('### encoded')
-        # encoded = suitable_generator.encode(synthetic_data)
-        # print(encoded)
-        # real_encoded = suitable_generator.encode(self.loader)
-        # print(self.utilityCalculator.calculateUtility(real_encoded, encoded))
-        # self.fit_encoder(self.loader)
-        # encoded = self.encode_data(synthetic_data)
-        decoded = self.decode_data(synthetic_data)
-        # self.decode_data(encoded)
-
-        
-        ## Delete null rows
-        # null_rows = synthetic_data.dataframe().isnull().any(axis=1)
-        # synthetic_data = self.create_data_loader(synthetic_data.dataframe().drop(np.where(null_rows)[0]))
-
-
-        ## Encode syn data with same encoder used for real data
-        # syn_encoded = self.encode(synthetic_data.dataframe())
-        # syn_encoded = self.create_data_loader(syn_encoded)
-
-        ## Fine tune the data if specific privacy and/or utility requirements are included
-        if self.privacyMetricRequirement is not None or self.utilityMetricRequirement is not None:
-            if self.fineTuningModule is None:
-                raise RuntimeError("No fine tuning method specified, please specify a method in the config file.")
-            else:
-                if self.encode:
-                    synthetic_data = self.create_data_loader(self.fineTuningInstance.fine_tune(suitable_generator, self.loader_encoded, synthetic_data, count, self.privacyMetricRequirement, self.privacyValueRequirement, self.utilityMetricRequirement, self.utilityValueRequirement, self.requirementRrange))
+        print("---Generating synthetic data for protection level: " + protection_level.name + "---")
+        synthetic_data = None
+        if type(protection_level) is str:
+            ## The protection level name has to be linked to a generator
+            if protection_level in self.protection_levels.keys():
+                ## Check if there is previously generated synthetic data for this protection level
+                if protection_level.name in self.syn_data.keys() and self.syn_data[protection_level.name].dataframe().size >= size:
+                    print("using previous generated data")
+                    synthetic_data = self.create_data_loader(self.syn_data[protection_level.name].dataframe().sample(size))
                 else:
-                    synthetic_data = self.create_data_loader(self.fineTuningInstance.fine_tune(suitable_generator, self.loader, synthetic_data, count, self.privacyMetricRequirement, self.privacyValueRequirement, self.utilityMetricRequirement, self.utilityValueRequirement, self.requirementRrange))
+                    generator = self.generators[protection_level]
+                    ## Generate data
+                    synthetic_data = self.generate(generator, size)
+            else:
+                raise ValueError("This protection level name is not linked to a generator. Try adding a generator with this proteciton level first.")
+        else:
+            ## Check if the there is a baseline generator with this protection level
+            if protection_level.name in self.protection_levels.keys():
+                ## Check if there is previously generated synthetic data for this protection level
+                if protection_level.name in self.syn_data.keys() and self.syn_data[protection_level.name].dataframe().size >= size:
+                    print("using previous generated data")
+                    synthetic_data = self.create_data_loader(self.syn_data[protection_level.name].dataframe().sample(size))
+                else:
+                    generator = self.generators[protection_level.name]
+                    ## Generate data
+                    synthetic_data = self.generate(generator, size)
+            else:
+                ## No generator exists for this requirement
+                print("No generator has been configured for these requirements, please come back later. The system will come back to you if it's ready to serve your request.")
+                synthetic_data = self.handle_new_protection_level(protection_level, size)
+                ## First try to create synthetic data using the existing generators to respond on the request as fast as possible
+                ## Do this in a seperate thread so the system can handle other requests
+                # thread_fine_tune = threading.Thread(target=self.fine_tune_generators, args=(protection_level, count, ))
+                # thread_fine_tune.start()
+                ## Create a new generator for this specific requirement and add to generator repository
+                ## Do this in a seperate thread so the system can handle other requests
+                # thread_create_generator = threading.Thread(target=self.create_generator, args=(protection_level,))
+                # thread_create_generator.start()
         
-        if synthetic_data == None:
-            print('The privacy and/or utility can not be reached. Try retraining the generators, adding a new generator or adapting the privacy or utility requirements.')
-            return None
-
-        ## Generate evaluation report of synthetic data
-        report = self.evaluationReport.generateReport(self.loader, synthetic_data)
-        print(report)
+        ## Store synthetic data such that the data can be delivered faster on the next request
+        if protection_level.name not in self.syn_data.keys():
+            self.syn_data[protection_level.name] = synthetic_data
 
         ## Decode syn data
         if self.encode:
             synthetic_data = self.decode_data(synthetic_data)
         
-        print("---Releasing synthetic data---")
+        print("---Generated synthetic data---")
         return synthetic_data
+    
+    def handle_new_protection_level(self, protection_level: ProtectionLevel, size: int):
+        ## if protection level is specified by an epsilon value, we can easily create the right generator
+        if protection_level.epsilon is not None:
+            generator = self.pluginClass(epsilon=protection_level.epsilon, protection_level=protection_level)
+            generator.fit(self.private_data)
+            self.generators[protection_level.name] = generator
+            syn = self.generate(generator, size)
+            ## Store generator
+            generator.save_model()
+            ## Generate information file of synthetic data generator
+            synthetic_data = self.generate(generator, 10000)
+            self.evaluationInfo.generateInfo(self.private_data, synthetic_data, generator, protection_level)
+        else:
+            ## First try to create synthetic data using the existing generators to respond on the request as fast as possible
+            syn = self.fine_tune_generators(protection_level, size)
+            ## Do this in a seperate thread so the system can handle other requests
+            # thread_fine_tune = threading.Thread(target=self.fine_tune_generators, args=(protection_level, count, ))
+            # thread_fine_tune.start()
+
+            ## Create a new generator for this specific requirement and add to generator repository
+            self.create_generator(protection_level)
+            ## Do this in a seperate thread so the system can handle other requests
+            # thread_create_generator = threading.Thread(target=self.create_generator, args=(protection_level,))
+            # thread_create_generator.start()
+            if syn is None:
+                if protection_level.name in self.protection_levels.keys():
+                    generator = self.generators[protection_level.name]
+                    syn = self.generate(generator, size)
+        return syn
+    
+    def fine_tune_generators(self, protection_level: ProtectionLevel, size: int):
+        ## Create synthetic data using the existing generators to respond on the request as fast as possible
+        return self.fineTuningInstance.fine_tune(self.private_data, self.generators, protection_level, size)

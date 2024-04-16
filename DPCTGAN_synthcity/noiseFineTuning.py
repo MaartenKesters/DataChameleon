@@ -1,8 +1,7 @@
-from fineTuningMethod import FineTuningMethod
+from fineTuningTechnique import FineTuningTechnique
 from privacyCalculator import PrivacyCalculator
 from utilityCalculator import UtilityCalculator
-from privacyKnowledge import PrivacyKnowledge
-from utilityKnowledge import UtilityKnowledge
+from protectionLevel import ProtectionLevel
 
 from synthcity.plugins.core.dataloader import DataLoader, GenericDataLoader
 from plugin import Plugin
@@ -11,51 +10,54 @@ import os
 import pandas as pd
 import numpy as np
 
-class NoiseFineTuning(FineTuningMethod):
+class NoiseFineTuningTechnique(FineTuningTechnique):
     def __init__(
             self,
-            trained_generators: dict,
             privacyCalculator: PrivacyCalculator,
             utilityCalculator: UtilityCalculator
     ) -> None:
-        super().__init__(trained_generators, privacyCalculator, utilityCalculator)
+        super().__init__(privacyCalculator, utilityCalculator)
 
     @staticmethod
     def name() -> str:
         return "noisefinetuning"
     
-    def fine_tune(self, current_generator: Plugin, real: DataLoader, syn: DataLoader, count: int, priv_metric_req: PrivacyKnowledge, priv_val_req: float, util_metric_req: UtilityKnowledge, util_val_req: float, error_range: float) -> pd.DataFrame:
+    def fine_tune(self, private_data: DataLoader, generators, protection_level: ProtectionLevel) -> pd.DataFrame:
         print("fine tune")
-        self.count = count
-        self.real = real
-        self.current_generator = current_generator
-        self.level = current_generator.get_privacy_level()
+        self.private_data = private_data
+        self.generators = generators
 
-        new_syn = syn
+        ## Find the generator with the most similar requirements to use as a starting point
+        self.generator = self.find_initial_generator(generators, protection_level)
+        if self.generator is None:
+            ## No suitable generator exists, can not fine-tune the synthetic data from other generators, need to create a new generator specific for this requirement
+            return None
+        
+        ## Generate synthetic data as the starting point to check the requirements
+        syn = self.generator.generate(count=self.size)
         
         ## Fine tune privacy
-        if priv_metric_req is not None:
-            ## Calculate the current privacy to use during fine tuning
-            self.current_privacy = self.privacy_calc.calculatePrivacy(self.real, syn)
-            priv_satisfied = False
-            prev_val = 0
-            while not priv_satisfied:
-                ## Calculate if the privacy requirement is met
-                val = priv_metric_req.calculate(self.real, new_syn)
-                print('calc req: ' + str(val))
-                if (priv_metric_req.privacy() == 1 and val < prev_val) or (priv_metric_req.privacy() == 0 and val > prev_val):
-                    ## Privacy requirement can not be satisfied
-                    return None
+        ## Calculate the current privacy to use during fine tuning
+        self.current_privacy = self.privacy_calc.calculatePrivacy(self.real, syn)
+        priv_satisfied = False
+        prev_val = 0
+        while not priv_satisfied:
+            ## Calculate if the privacy requirement is met
+            val = protection_level.privacy_metric.calculate(self.real, syn)
+            print('calc req: ' + str(val))
+            if (protection_level.privacy_metric.privacy() == 1 and val < prev_val) or (protection_level.privacy_metric.privacy() == 0 and val > prev_val):
+                ## Privacy requirement can not be satisfied
+                return None
+            else:
+                prev_val = val
+                if (protection_level.privacy_metric.privacy() == 1 and val > (protection_level.privacy_value - protection_level.range)) or (protection_level.privacy_metric.privacy() == 0 and val < (protection_level.privacy_value + protection_level.range)):
+                    priv_satisfied = True
+                    break
                 else:
-                    prev_val = val
-                    if priv_metric_req.satisfied(priv_val_req, val, error_range):
-                        priv_satisfied = True
-                        break
-                    else:
-                        amount = priv_metric_req.amount(priv_val_req, val)
-                        new_syn = self.increase_privacy(new_syn, amount)
+                    amount = protection_level.privacy_metric.amount(protection_level.privacy_value, val)
+                    syn = self.increase_privacy(syn, amount)
 
-        return new_syn.dataframe()
+        return syn.dataframe()
     
     def increase_privacy(self, syn: DataLoader, amount: float) -> DataLoader:
         print('Increase privacy')

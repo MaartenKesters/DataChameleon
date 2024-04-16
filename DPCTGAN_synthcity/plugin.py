@@ -34,7 +34,7 @@ from synthcity.utils.constants import DEVICE
 from synthcity.utils.reproducibility import enable_reproducible_results
 from synthcity.utils.serialization import load_from_file, save_to_file
 
-from privacyLevel import PrivacyLevels
+from protectionLevel import ProtectionLevel
 
 PLUGIN_NAME_NOT_SET: str = "plugin_name_not_set"
 PLUGIN_TYPE_NOT_SET: str = "plugin_type_not_set"
@@ -71,8 +71,8 @@ class Plugin(Serializable, metaclass=ABCMeta):
             Max inference iterations to wait for the generated data to match the training schema.
         sampling_strategy: str
             Internal parameter for schema. marginal or uniform.
-        privacy_level: PrivacyLevel
-            The privacy level of the plugin
+        protection_level: ProtectionLevel
+            The protection level of the plugin
     """
 
     class Config:
@@ -88,7 +88,7 @@ class Plugin(Serializable, metaclass=ABCMeta):
         workspace: Path = Path("workspace"),
         compress_dataset: bool = False,
         sampling_strategy: str = "marginal",  # uniform, marginal
-        privacy_level: PrivacyLevels = PrivacyLevels.SECRET,
+        protection_level: ProtectionLevel = None,
     ) -> None:
         if self.name() == PLUGIN_NAME_NOT_SET:
             raise ValueError(
@@ -120,7 +120,7 @@ class Plugin(Serializable, metaclass=ABCMeta):
         self.fitted = False
         self.expecting_conditional = False
 
-        self.privacy_level = privacy_level
+        self.protection_level = protection_level
 
     @staticmethod
     @abstractmethod
@@ -177,29 +177,29 @@ class Plugin(Serializable, metaclass=ABCMeta):
         """The Fully-Qualified name of the plugin."""
         return cls.type() + "." + cls.name()
     
-    def get_privacy_level(self) -> PrivacyLevels:
-        return self.privacy_level
-    
     ## Abstract methods that each plugin should implement
-    @abstractmethod
-    def set_privacy_level(self, level: PrivacyLevels):
-        ...
-
-    @abstractmethod
-    def set_dp_epsilon(self, eps: float):
-        ...
-    
     @abstractmethod
     def get_dp_epsilon(self) -> float:
         ...
 
     @abstractmethod
-    def save_model(self, path):
+    def save_model(self):
         ...
     
     @abstractmethod
     def load_model(self, path):
         ...
+
+    @abstractmethod
+    def load_protection_level(self, path):
+        ...
+
+    @abstractmethod
+    def find_models_by_protection_level(self, target_protection_level):
+        ...
+    
+    def get_protection_level(self) -> ProtectionLevel:
+        return self.protection_level
     
     def encode(self, X: DataLoader):
         if isinstance(X, (pd.DataFrame)):

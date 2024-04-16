@@ -27,8 +27,6 @@ from synthcity.plugins.core.schema import Schema
 from synthcity.utils.constants import DEVICE
 
 from sklearn.datasets import load_diabetes
-
-from privacyLevel import PrivacyLevels
 from plugin import Plugin
 from tabular_gan import TabularGAN
 from synthcity.plugins.core.models.tabular_encoder import TabularEncoder
@@ -139,8 +137,6 @@ class DPCTGANPlugin(Plugin):
         delta: Optional[float] = None,
         dp_max_grad_norm: float = 2,
         dp_secure_mode: bool = False,
-        # privacy level
-        privacy_level: PrivacyLevels = PrivacyLevels.SECRET,
         # early stopping
         patience: int = 5,
         patience_metric: Optional[WeightedMetrics] = None,
@@ -158,7 +154,6 @@ class DPCTGANPlugin(Plugin):
             sampling_patience=sampling_patience,
             workspace=workspace,
             compress_dataset=compress_dataset,
-            privacy_level=privacy_level,
             **kwargs
         )
         if patience_metric is None:
@@ -199,7 +194,7 @@ class DPCTGANPlugin(Plugin):
         self.n_iter_print = n_iter_print
 
         # privacy
-        self.dp_epsilon = privacy_level.epsilon
+        self.dp_epsilon = epsilon
         self.dp_delta = delta
         self.dp_enabled = True
         self.dp_max_grad_norm = dp_max_grad_norm
@@ -323,13 +318,6 @@ class DPCTGANPlugin(Plugin):
             cond = self._prepare_cond(kwargs["cond"])
 
         return self._safe_generate(self.model.generate, count, syn_schema, cond=cond)
-    
-    def set_privacy_level(self, level: PrivacyLevels):
-        self.privacy_level = level
-        self.dp_epsilon = level.epsilon
-    
-    def set_dp_epsilon(self, value):
-        self.dp_epsilon = value
 
     def get_dp_epsilon(self) -> float:
         return self.dp_epsilon
