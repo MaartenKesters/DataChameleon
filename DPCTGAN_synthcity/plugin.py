@@ -197,6 +197,9 @@ class Plugin(Serializable, metaclass=ABCMeta):
     @abstractmethod
     def find_models_by_protection_level(self, target_protection_level):
         ...
+
+    def set_protection_level(self, level):
+        self.protection_level = level
     
     def get_protection_level(self) -> ProtectionLevel:
         return self.protection_level

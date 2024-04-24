@@ -1,4 +1,4 @@
-from fineTuningTechnique import FineTuningTechnique
+from generationTechnique import GenerationTechnique
 from privacyCalculator import PrivacyCalculator
 from utilityCalculator import UtilityCalculator
 
@@ -7,7 +7,7 @@ from plugin import Plugin
 
 import os
 
-class NewGeneratorTechnique(FineTuningTechnique):
+class NewGeneratorTechnique(GenerationTechnique):
     def __init__(
             self,
             trained_generators: dict,

@@ -1,5 +1,5 @@
-import privacyKnowledge
-import utilityKnowledge
+import privacyMetrics
+import utilityMetrics
 from plugin import Plugin
 from protectionLevel import ProtectionLevel
 
@@ -16,18 +16,18 @@ class EvaluationInfo():
 
     def setMetrics(self, metrics: dict):
         self.privMetrics = []
-        self.privMetrics.append(getattr(privacyKnowledge, privacyKnowledge.CLASS_NAME_FILE[metrics['privmetric1']])())
+        self.privMetrics.append(getattr(privacyMetrics, privacyMetrics.CLASS_NAME_FILE[metrics['privmetric1']])())
         if metrics['privmetric2'] != 'none':
-            self.privMetrics.append(getattr(privacyKnowledge, privacyKnowledge.CLASS_NAME_FILE[metrics['privmetric2']])())
+            self.privMetrics.append(getattr(privacyMetrics, privacyMetrics.CLASS_NAME_FILE[metrics['privmetric2']])())
         if metrics['privmetric3'] != 'none':  
-            self.privMetrics.append(getattr(privacyKnowledge, privacyKnowledge.CLASS_NAME_FILE[metrics['privmetric3']])())
+            self.privMetrics.append(getattr(privacyMetrics, privacyMetrics.CLASS_NAME_FILE[metrics['privmetric3']])())
         
         self.utilMetrics = []
-        self.utilMetrics.append(getattr(utilityKnowledge, utilityKnowledge.CLASS_NAME_FILE[metrics['utilmetric1']])())
+        self.utilMetrics.append(getattr(utilityMetrics, utilityMetrics.CLASS_NAME_FILE[metrics['utilmetric1']])())
         if metrics['utilmetric2'] != 'none':
-            self.utilMetrics.append(getattr(utilityKnowledge, utilityKnowledge.CLASS_NAME_FILE[metrics['utilmetric2']])())
+            self.utilMetrics.append(getattr(utilityMetrics, utilityMetrics.CLASS_NAME_FILE[metrics['utilmetric2']])())
         if metrics['utilmetric3'] != 'none':  
-            self.utilMetrics.append(getattr(utilityKnowledge, utilityKnowledge.CLASS_NAME_FILE[metrics['utilmetric3']])())
+            self.utilMetrics.append(getattr(utilityMetrics, utilityMetrics.CLASS_NAME_FILE[metrics['utilmetric3']])())
 
     def generateInfo(self, real: DataLoader, syn: DataLoader, generator: Plugin, protection_level: ProtectionLevel) -> str:
         info = "---Evaluation info: " + generator.name() + ", " + protection_level.name + "--- \n"

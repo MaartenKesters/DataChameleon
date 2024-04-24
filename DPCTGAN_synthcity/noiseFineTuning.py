@@ -1,4 +1,4 @@
-from fineTuningTechnique import FineTuningTechnique
+from generationTechnique import GenerationTechnique
 from privacyCalculator import PrivacyCalculator
 from utilityCalculator import UtilityCalculator
 from protectionLevel import ProtectionLevel
@@ -10,7 +10,7 @@ import os
 import pandas as pd
 import numpy as np
 
-class NoiseFineTuningTechnique(FineTuningTechnique):
+class NoiseFineTuningTechnique(GenerationTechnique):
     def __init__(
             self,
             privacyCalculator: PrivacyCalculator,

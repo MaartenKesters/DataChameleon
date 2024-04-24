@@ -2,26 +2,38 @@ from plugin import Plugin
 from protectionLevel import ProtectionLevel
 from privacyCalculator import PrivacyCalculator
 from utilityCalculator import UtilityCalculator
+from privacyMetrics import PrivacyMetric
+from utilityMetrics import UtilityMetric
 
 from synthcity.plugins.core.dataloader import DataLoader
 
+from typing import Optional
+
 class GeneratorCreator():
     def __init__(self, private: DataLoader, plugin_class: Plugin, privacy_calc: PrivacyCalculator, utility_calc: UtilityCalculator):
-        self.size = 1000
+        self.size = 10000
         self.plugin_class = plugin_class
         self.private_data = private
         self.privacy_calc = privacy_calc
         self.utility_calc = utility_calc
 
-    def create_generator(self, generators, protection_level: ProtectionLevel) -> Plugin:
+    def create_generator(self, generators, protection_level: ProtectionLevel, privacy_metric: Optional[PrivacyMetric] = None, privacy_value: Optional[float] = None, utility_metric: Optional[UtilityMetric] = None, utility_value: Optional[float] = None, range: Optional[float] = None) -> Plugin:
+        self.generators = generators
         self.protection_level = protection_level
-        ## if protection level is specified by an epsilon value, we can easily create the right generator
+        self.privacy_metric = privacy_metric
+        self.privacy_value = privacy_value
+        self.utility_metric = utility_metric
+        self.utility_value = utility_value
+        self.range = range
+
+        ## if requirement is specified by an epsilon value, we can easily create the right generator
         if protection_level.epsilon is not None:
             self.generator = self.plugin_class(protection_level=protection_level, epsilon=protection_level.epsilon)
             self.generator.fit(self.private_data)
             return self.generator
+        
         ## Find the generator with the most similar protection level to use as a starting point
-        self.generator = self.find_initial_generator(generators, protection_level)
+        self.generator = self.find_initial_generator(generators, privacy_metric, privacy_value, utility_metric, utility_value)
         if self.generator is None:
             ## Create new starting point if no other generators exist
             self.generator = self.plugin_class(protection_level=protection_level, epsilon=1)
@@ -38,90 +50,166 @@ class GeneratorCreator():
 
         while not satisfied:
 
-            ## Fine tune privacy
-            ## Calculate the current privacy to use during fine tuning
-            self.current_privacy = self.privacy_calc.calculatePrivacy(self.private_data, syn)
-
-            if protection_level.privacy_metric is not None:
+            ## Both privacy and utility requirment given
+            if privacy_metric is not None and utility_metric is not None:
                 priv_satisfied = False
-                while not priv_satisfied:
-                    ## Calculate the privacy with given metric for requirement
-                    val = protection_level.privacy_metric.calculate(self.private_data, syn)
-                    print('calc req: ' + str(val))
+                util_satisfied = False
+                ## Calculate the privacy with given metric for requirement
+                priv_val = privacy_metric.calculate(self.private_data, syn)
+                print('calc priv req: ' + str(priv_val))
+                if privacy_metric.satisfied(privacy_value, priv_val, range):
+                    priv_satisfied = True
+                ## Calculate the utility
+                util_val = utility_metric.calculate(self.private_data, syn)
+                print('calc util req: ' + str(util_val))
+                if utility_metric.satisfied(utility_value, util_val, range):
+                    util_satisfied = True
 
-                    if protection_level.privacy_metric.satisfied(protection_level.privacy_value, val, protection_level.range):
-                        priv_satisfied = True
-                        break
+                if priv_satisfied and util_satisfied:
+                    satisfied = True
+                    break 
+                
+                ## Check that we need to update the generator in the same direction for privacy and utility
+                ## decrease epsilon
+                if (privacy_metric.privacy() == 1 and priv_val < privacy_value) or (privacy_metric.privacy() == 0 and priv_val > privacy_value):
+                    ## increase privacy = decrease epsilon
+                    if (utility_metric.utility() == 1 and util_val > utility_value) or (utility_metric.utility() == 0 and util_val < utility_value):
+                        ## decrease utility = decrease epsilon
 
-                    ## Check how much the privacy has to change
-                    amount = protection_level.privacy_metric.amount(protection_level.privacy_value, val)
+                        ## Check how much the privacy has to change
+                        priv_amount = privacy_metric.amount(privacy_value, val)
+                        ## Check how much the utility has to change
+                        util_amount = utility_metric.amount(utility_value, val)
 
-                    ## Check if we need to increase or decrease privacy
-                    if protection_level.privacy_metric.privacy() == 1:
-                        if val < protection_level.privacy_value:
-                            new = self.increase_privacy(syn, amount)
+                        ## update epsilon
+                        if priv_amount <= util_amount:
+                            new = self.increase_privacy(priv_amount)
                         else:
-                            new = self.decrease_privacy(syn, amount)
+                            new = self.decrease_utility(util_amount)
                     else:
-                        if val > protection_level.privacy_value:
-                            new = self.increase_privacy(syn, amount)
-                        else:
-                            new = self.decrease_privacy(syn, amount)
-
-                    ## If new is None, no improvements are made
-                    if new is not None:
-                        syn = new
-                    else:
+                        ## increase utility == increase epsilon
                         print('Automatically creating a generator for this protection level did not work. try to add it manually.')
                         return None
+                ## increase epsilon
+                elif (privacy_metric.privacy() == 1 and priv_val > privacy_value) or (privacy_metric.privacy() == 0 and priv_val < privacy_value):
+                    ## decrease privacy = increase epsilon
+                    if (utility_metric.utility() == 1 and util_val < utility_value) or (utility_metric.utility() == 0 and util_val > utility_value):
+                        ## increase utility = increase epsilon
 
-            ## Fine tune utility
-            ## Calculate the current utility to use during fine tuning
-            self.current_utility = self.utility_calc.calculateUtility(self.private_data, syn)
+                        ## Check how much the privacy has to change
+                        priv_amount = privacy_metric.amount(privacy_value, val)
+                        ## Check how much the utility has to change
+                        util_amount = utility_metric.amount(utility_value, val)
 
-            if protection_level.utility_metric is not None:
-                util_satisfied = False
-                while not util_satisfied:
-                    ## Calculate the utility
-                    val = protection_level.utility_metric.calculate(self.private_data, syn)
-                    print('calc req: ' + str(val))
-
-                    if protection_level.utility_metric.satisfied(protection_level.utility_value, val, protection_level.range):
-                        util_satisfied = True
-                        break
-                        
-                    ## Check how much the utility has to change
-                    amount = protection_level.utility_metric.amount(protection_level.utility_value, val)
-                    
-                    ## Check if we need to increase or decrease utility
-                    if protection_level.utility_metric.utility() == 1:
-                        if val < protection_level.utility_value:
-                            new = self.increase_utility(syn, amount)
+                        ## update epsilon
+                        if priv_amount <= util_amount:
+                            new = self.decrease_privacy(priv_amount)
                         else:
-                            new = self.decrease_utility(syn, amount)
+                            new = self.increase_utility(util_amount)
                     else:
-                        if val > protection_level.utility_value:
-                            new = self.increase_utility(syn, amount)
-                        else:
-                            new = self.decrease_utility(syn, amount)
-
-                    ## If new is None, no improvements are made
-                    if new is not None:
-                        syn = new
-                    else:
-                        print('Automatically creating a generator for this protection level did not work. try to add it manually, slightly adapt the protection level or use other generators.')
+                        ## decrease utility = decrease epsilon
+                        print('Automatically creating a generator for this protection level did not work. try to add it manually.')
                         return None
+                        
+                ## If new is None, no improvements are made
+                if new is not None:
+                    syn = new
+                else:
+                    print('Automatically creating a generator for this protection level did not work. try to add it manually.')
+                    return None
+
+            ## only privacy requirement given            
+            elif privacy_metric is not None:
+                ## update privacy
+                ## Calculate the current privacy to use during creation
+                self.current_privacy = self.privacy_calc.calculatePrivacy(self.private_data, syn)
+
+                ## Calculate the privacy with given metric for requirement
+                val = privacy_metric.calculate(self.private_data, syn)
+                print('calc priv req: ' + str(val))
+
+                if privacy_metric.satisfied(privacy_value, val, range):
+                    satisfied = True
+                    break
+
+                ## Check how much the privacy has to change
+                amount = privacy_metric.amount(privacy_value, val)
+
+                ## Check if we need to increase or decrease privacy
+                if privacy_metric.privacy() == 1:
+                    if val < privacy_value:
+                        new = self.increase_privacy(amount)
+                    else:
+                        new = self.decrease_privacy(amount)
+                else:
+                    if val > privacy_value:
+                        new = self.increase_privacy(amount)
+                    else:
+                        new = self.decrease_privacy(amount)
+
+                ## If new is None, no improvements are made
+                if new is not None:
+                    syn = new
+                else:
+                    print('Automatically creating a generator for this protection level did not work. try to add it manually.')
+                    return None
+
+            ## only utility metric given
+            elif utility_metric is not None:
+                ## update utility
+                ## Calculate the current utility to use during creation
+                self.current_utility = self.utility_calc.calculateUtility(self.private_data, syn)
+
+                ## Calculate the utility
+                val = utility_metric.calculate(self.private_data, syn)
+                print('calc util req: ' + str(val))
+
+                if utility_metric.satisfied(utility_value, val, range):
+                    satisfied = True
+                    break
+                        
+                ## Check how much the utility has to change
+                amount = utility_metric.amount(utility_value, val)
+                    
+                ## Check if we need to increase or decrease utility
+                if utility_metric.utility() == 1:
+                    if val < utility_value:
+                        new = self.increase_utility(amount)
+                    else:
+                        new = self.decrease_utility(amount)
+                else:
+                    if val > utility_value:
+                        new = self.increase_utility(amount)
+                    else:
+                        new = self.decrease_utility(amount)
+
+                ## If new is None, no improvements are made
+                if new is not None:
+                    syn = new
+                else:
+                    print('Automatically creating a generator for this protection level did not work. try to add it manually, slightly adapt the protection level or use other generators.')
+                    return None
+        
+        return self.generator 
 
             ## Calculate the privacy and utility, check if both requirements are still met
-            print('final check')
-            priv_val = protection_level.privacy_metric.calculate(self.private_data, syn)
-            util_val = protection_level.utility_metric.calculate(self.private_data, syn)
-            print('calc priv req: ' + str(priv_val))
-            print('calc util req: ' + str(util_val))
-            if protection_level.privacy_metric.satisfied(protection_level.privacy_value, priv_val, protection_level.range) and protection_level.privacy_metric.satisfied(protection_level.utility_value, util_val, protection_level.range):
-                return self.generator
+            # print('final check')
+            # priv_satisfied = True
+            # util_satisfied = True
+            # if privacy_metric is not None:
+            #     priv_val = privacy_metric.calculate(self.private_data, syn)
+            #     print('calc priv req: ' + str(priv_val))
+            #     if not privacy_metric.satisfied(privacy_value, priv_val, range):
+            #         priv_satisfied = False
+            # if utility_metric is not None:
+            #     util_val = utility_metric.calculate(self.private_data, syn)
+            #     print('calc util req: ' + str(util_val))
+            #     if not utility_metric.satisfied(utility_value, util_val, range):
+            #         util_satisfied = False
+            # if priv_satisfied and util_satisfied:
+            #     return self.generator  
 
-    def increase_privacy(self, syn: DataLoader, amount: float) -> DataLoader:
+    def increase_privacy(self, amount: float) -> DataLoader:
         print('Increase privacy')
         ## set current generator eps as high bound
         self.eps_high_bound = self.generator.get_dp_epsilon()
@@ -149,7 +237,7 @@ class GeneratorCreator():
             ## Increasing the privacy did not work
             return None
         
-    def decrease_privacy(self, syn: DataLoader, amount: float) -> DataLoader:
+    def decrease_privacy(self, amount: float) -> DataLoader:
         print('Decrease privacy')
         ## set current generator eps as low bound
         self.eps_low_bound = self.generator.get_dp_epsilon()
@@ -177,7 +265,7 @@ class GeneratorCreator():
             ## Decreasing the privacy did not work
             return None
 
-    def increase_utility(self, syn: DataLoader, amount: float) -> DataLoader:
+    def increase_utility(self, amount: float) -> DataLoader:
         print('Increase utility')
         ## set current generator eps as low bound
         self.eps_low_bound = self.generator.get_dp_epsilon()
@@ -205,7 +293,7 @@ class GeneratorCreator():
             ## Increasing the utility did not work
             return None
 
-    def decrease_utility(self, syn: DataLoader, amount: float) -> DataLoader:
+    def decrease_utility(self, amount: float) -> DataLoader:
         print('Decrease utility')
         ## set current generator eps as low bound
         self.eps_high_bound = self.generator.get_dp_epsilon()
@@ -238,23 +326,20 @@ class GeneratorCreator():
         new_generator = self.plugin_class(protection_level=self.protection_level, epsilon=eps)
         return new_generator
 
-    def find_initial_generator(self, generators, protection_level: ProtectionLevel) -> Plugin:
+    def find_initial_generator(self, generators, privacy_metric: PrivacyMetric, privacy_value: float, utility_metric: UtilityMetric, utility_value: float) -> Plugin:
         closest_generator = None
         difference = 0
         for level, generator in generators.items():
-            if level == protection_level.name and level == protection_level.name:
-                if closest_generator is None:
-                    closest_generator = generator
-                    privacy_diff = level.privacy_value
-                    utility_diff = level.utility_value
-                    difference = (privacy_diff + utility_diff) / 2
-                else:
-                    priv_diff = abs(level.privacy_value - protection_level.privacy_value)
-                    util_diff = abs(level.utility_value - protection_level.utility_value)
-                    diff = (priv_diff + util_diff) / 2
-                    if diff < difference:
-                        closest_generator = generator
-                        difference = difference
+            syn = generator.generate(count=self.size)
+            priv_diff = abs(privacy_metric.calculate(self.private_data, syn) - privacy_value)
+            util_diff = abs(utility_metric.calculate(self.private_data, syn) - utility_value)
+            diff = (priv_diff + util_diff) / 2
+            if closest_generator is None:
+                closest_generator = generator
+                difference = diff
+            elif diff < difference:
+                closest_generator = generator
+                difference = difference
         return closest_generator
     
 

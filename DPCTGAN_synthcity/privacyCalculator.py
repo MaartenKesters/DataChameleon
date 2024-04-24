@@ -1,4 +1,4 @@
-import privacyKnowledge
+import privacyMetrics
 
 from synthcity.plugins.core.dataloader import DataLoader
 
@@ -11,16 +11,16 @@ class PrivacyCalculator():
         pass
 
     def setMetrics(self, metrics: dict):
-        self.metric1 = getattr(privacyKnowledge, privacyKnowledge.CLASS_NAME_FILE[metrics['metric1']])()
+        self.metric1 = getattr(privacyMetrics, privacyMetrics.CLASS_NAME_FILE[metrics['metric1']])()
         self.weight1 = float(metrics['weight1'])
         if metrics['metric2'] != 'none':
-            self.metric2 = getattr(privacyKnowledge, privacyKnowledge.CLASS_NAME_FILE[metrics['metric2']])()
+            self.metric2 = getattr(privacyMetrics, privacyMetrics.CLASS_NAME_FILE[metrics['metric2']])()
             self.weight2 = float(metrics['weight2'])
         else:
             self.metric2 = None
             self.weight2 = None
         if metrics['metric3'] != 'none':  
-            self.metric3 = getattr(privacyKnowledge, privacyKnowledge.CLASS_NAME_FILE[metrics['metric3']])()
+            self.metric3 = getattr(privacyMetrics, privacyMetrics.CLASS_NAME_FILE[metrics['metric3']])()
             self.weight3 = float(metrics['weight3'])
         else:
             self.metric3 = None
@@ -36,7 +36,7 @@ class PrivacyCalculator():
         print('calc priv: ' + str(value))
         return value
     
-    def normalize(self, metric: privacyKnowledge, val: float) -> float:
+    def normalize(self, metric: privacyMetrics, val: float) -> float:
         ## normalize each value to range 0-1
         normalized = (val - metric.range()[0]) / (metric.range()[1] - metric.range()[0])
         

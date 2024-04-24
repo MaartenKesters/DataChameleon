@@ -11,8 +11,8 @@ class ConfigHandler():
 
     def parseConfigs(self):
         self.parseGenerator()
-        self.parseFineTuningMetrics()
-        self.parseFineTuningMethod()
+        self.parseGenerationMetrics()
+        self.parseGenerationTechnique()
         self.parseEncoding()
         self.parseEvaluationMetrics()
 
@@ -20,7 +20,7 @@ class ConfigHandler():
         self.pluginModule = self.config.get('Plugin', 'module')
         self.pluginClass = self.config.get('Plugin', 'className')
     
-    def parseFineTuningMetrics(self):
+    def parseGenerationMetrics(self):
         self.privacyMetric1 = self.config.get('Metrics', 'privacymetric1')
         self.privacyMetric1Weight = self.config.get('Metrics', 'privacymetric1weight')
         self.privacyMetric2 = self.config.get('Metrics', 'privacymetric2')
@@ -34,9 +34,9 @@ class ConfigHandler():
         self.utilityMetric3 = self.config.get('Metrics', 'utilitymetric3')
         self.utilityMetric3Weight = self.config.get('Metrics', 'utilitymetric3weight')
 
-    def parseFineTuningMethod(self):
-        self.fineTuningModule = self.config.get('FineTuning', 'module')
-        self.fineTuningClass = self.config.get('FineTuning', 'className')
+    def parseGenerationTechnique(self):
+        self.generationModule = self.config.get('Generation', 'module')
+        self.generationClass = self.config.get('Generation', 'className')
 
     def parseEncoding(self):
         encode = self.config.get('Encoding', 'encode')
@@ -65,10 +65,10 @@ class ConfigHandler():
     def getUtilityMetrics(self):
         return {'metric1':self.utilityMetric1, 'weight1':self.utilityMetric1Weight, 'metric2':self.utilityMetric2, 'weight2':self.utilityMetric2Weight, 'metric3':self.utilityMetric3, 'weight3':self.utilityMetric3Weight}
     
-    def getFineTuningModule(self):
+    def getGenerationModule(self):
         return self.fineTuningModule
     
-    def getFineTuningClass(self):
+    def getGenerationClass(self):
         return self.fineTuningClass
     
     def getEncoding(self):

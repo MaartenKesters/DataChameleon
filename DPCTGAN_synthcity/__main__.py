@@ -11,18 +11,18 @@ from sklearn.metrics.pairwise import euclidean_distances
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import jaccard_score
 
-from chameleon import Chameleon
+from controller import Controller
 from protectionLevel import ProtectionLevel
-from privacyKnowledge import NearestNeighborDistance
-from utilityKnowledge import InverseKLDivergenceMetric
+from privacyMetrics import NearestNeighborDistance
+from utilityMetrics import InverseKLDivergenceMetric
 from dpgan import DPGANPlugin
 
 from ucimlrepo import fetch_ucirepo
 
 def main():
-    chameleon = Chameleon()
+    controller = Controller()
 
-    chameleon.handleConfigs()
+    controller.handleConfigs()
 
     print("##########")
     print("TRAINING PHASE")
@@ -94,24 +94,24 @@ def main():
 
 
     ## Create data loader
-    chameleon.load_private_data(data, sensitive_features=sensitive_features)
+    controller.load_private_data(data, sensitive_features=sensitive_features)
     # chameleon.encode_data(data_loader.dataframe())
 
     ## Show available metrics
-    chameleon.show_metrics()
+    controller.show_metrics()
 
     ## Create new protection levels for different use cases
     # level1 = chameleon.create_protection_level("Level 1", privacy_metric=privacy_metric, privacy_val=0.4, utility_metric=utility_metric, utility_val=0.4, range=0.1)
-    level2 = chameleon.create_protection_level("Level 2", epsilon=3.0)
-    level3 = chameleon.create_protection_level("Level 3", epsilon=2.0)
-    level4 = chameleon.create_protection_level("Level 4", epsilon=1.0)
-    level5 = chameleon.create_protection_level("Level 5", epsilon=0.5)
+    level2 = controller.create_protection_level("Level 2", epsilon=3.0)
+    level3 = controller.create_protection_level("Level 3", epsilon=2.0)
+    level4 = controller.create_protection_level("Level 4", epsilon=1.0)
+    level5 = controller.create_protection_level("Level 5", epsilon=0.5)
 
     ## Create new baseline generators
-    chameleon.create_generator(protection_level=level2)
-    chameleon.create_generator(protection_level=level3)
-    chameleon.create_generator(protection_level=level4)
-    chameleon.create_generator(protection_level=level5)
+    controller.create_generator(protection_level=level2)
+    controller.create_generator(protection_level=level3)
+    controller.create_generator(protection_level=level4)
+    controller.create_generator(protection_level=level5)
     # chameleon.add_generator(generator=DPGANPlugin(epsilon=1.0), protection_level=level3)
 
     print("##########")
@@ -119,11 +119,11 @@ def main():
     print('##########')
 
     ## Show protection levels available for a use case
-    chameleon.show_protection_levels()
+    controller.show_protection_levels()
 
     ## Generate synthetic data for a use case with protection level
-    syn = chameleon.generate_synthetic_data(size=1000, protection_level=level2)
-    syn = chameleon.generate_synthetic_data(size=1000, protection_level=chameleon.create_protection_level('Level 6', privacy_metric=privacy_metric, privacy_val=0.4, utility_metric=utility_metric, utility_val=0.4, range=0.1))
+    syn = controller.generate_synthetic_data(size=1000, protection_level=level2)
+    syn = controller.generate_synthetic_data(size=1000, protection_level=controller.create_protection_level('Level 6', privacy_metric=privacy_metric, privacy_val=0.4, utility_metric=utility_metric, utility_val=0.4, range=0.1))
 
     print(syn)
 

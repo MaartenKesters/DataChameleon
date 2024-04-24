@@ -1,4 +1,4 @@
-from fineTuningTechnique import FineTuningTechnique
+from generationTechnique import GenerationTechnique
 from privacyCalculator import PrivacyCalculator
 from utilityCalculator import UtilityCalculator
 
@@ -9,7 +9,7 @@ from sklearn.metrics.pairwise import euclidean_distances
 import numpy as np
 import pandas as pd
 
-class MergeSynDataTechnique(FineTuningTechnique):
+class MergeSynDataTechnique(GenerationTechnique):
     def __init__(
             self,
             privacyCalculator: PrivacyCalculator,
@@ -131,16 +131,12 @@ class MergeSynDataTechnique(FineTuningTechnique):
 
         ## Counter to avoid getting stuck when no improvements are made
         no_change = 0
-        privacy_satisfied = False
-        while not privacy_satisfied:
+        while no_change < 10:
             rows_added = False
             ## Merge syn data from other generators
             for level, new_generator in self.generators.items():
                 ## Generate new synthetic data from other privacy level
                 new_data = new_generator.generate(self.size)
-
-                ## TODO encode new data with same encoder as private_data data
-                # new_data = self.create_data_loader(self.encode(new_data.dataframe()))
 
                 ## Current privacy of syn data
                 cur_priv = self.privacy_calc.calculatePrivacy(self.private_data, syn)
@@ -187,8 +183,6 @@ class MergeSynDataTechnique(FineTuningTechnique):
                 no_change = 0
             else:
                 no_change = no_change + 1
-                if no_change >= 10:
-                        return None
         
         ## Requested privacy can not be reached
         return None
@@ -274,15 +268,14 @@ class MergeSynDataTechnique(FineTuningTechnique):
 
         ## Counter to avoid getting stuck when no improvements are made
         no_change = 0
-
         freq_satisfied = False
         while not freq_satisfied:
             if no_change >= 10:
                 break
             
             ## Test if utility function is satisfied before all frequencies are calculated
-            util_val = self.protection_level.utility_metric.calculate(self.private_data, GenericDataLoader(syn_data))
-            if self.protection_level.utility_metric.satisfied(self.protection_level.utility_value, util_val, self.protection_level.range):
+            util_val = self.utility_metric.calculate(self.private_data, GenericDataLoader(syn_data))
+            if self.utility_metric.satisfied(self.utility_value, util_val, self.range):
                 return GenericDataLoader(syn_data)
 
             ## Set freq_satisfied True, if one column does not satisfy freq than it is set back to False
@@ -315,9 +308,6 @@ class MergeSynDataTechnique(FineTuningTechnique):
 
                     ## Generate new synthetic data from other privacy level
                     new_data = new_generator.generate(count = 100).dataframe()
-
-                    ## TODO Encode new data with same encoder as real data
-                    # new_data = self.create_data_loader(self.encode(new_data.dataframe()))
 
                     ## Merge syn data with new data until no suitable rows can be found in new data
                     row_found = True
@@ -386,11 +376,11 @@ class MergeSynDataTechnique(FineTuningTechnique):
             syn_data = new_syn
 
         new_data_loader = GenericDataLoader(syn_data)
-        util_val = self.protection_level.utility_metric.calculate(self.private_data, new_data_loader)
-        if self.protection_level.utility_metric.satisfied(self.protection_level.utility_value, util_val, self.protection_level.range):
+        util_val = self.utility_metric.calculate(self.private_data, new_data_loader)
+        if self.utility_metric.satisfied(self.utility_value, util_val, self.range):
             return new_data_loader
 
-        ## Utility can not be reached
+        ## Requested utility can not be reached
         return None
 
     
