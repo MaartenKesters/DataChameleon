@@ -46,12 +46,9 @@ class ConfigHandler():
             self.encode = False
 
     def parseEvaluationMetrics(self):
-        self.evalPrivacyMetric1 = self.config.get('Evaluation', 'privacymetric1')
-        self.evalPrivacyMetric2 = self.config.get('Evaluation', 'privacymetric2')
-        self.evalPrivacyMetric3 = self.config.get('Evaluation', 'privacymetric3')
-        self.evalUtilityMetric1 = self.config.get('Evaluation', 'utilitymetric1')
-        self.evalUtilityMetric2 = self.config.get('Evaluation', 'utilitymetric2')
-        self.evalUtilityMetric3 = self.config.get('Evaluation', 'utilitymetric3')
+        # Get privacy and utility metrics from the config file
+        self.privacy_metrics = self.config['Evaluation']['privacymetrics'].split(', ')
+        self.utility_metrics = self.config['Evaluation']['utilitymetrics'].split(', ')
     
     def getPluginModule(self):
         return self.pluginModule
@@ -66,13 +63,13 @@ class ConfigHandler():
         return {'metric1':self.utilityMetric1, 'weight1':self.utilityMetric1Weight, 'metric2':self.utilityMetric2, 'weight2':self.utilityMetric2Weight, 'metric3':self.utilityMetric3, 'weight3':self.utilityMetric3Weight}
     
     def getGenerationModule(self):
-        return self.fineTuningModule
+        return self.generationModule
     
     def getGenerationClass(self):
-        return self.fineTuningClass
+        return self.generationClass
     
     def getEncoding(self):
         return self.encode
     
     def getEvaluationMetrics(self):
-        return {'privmetric1':self.evalPrivacyMetric1, 'privmetric2':self.evalPrivacyMetric2, 'privmetric3':self.evalPrivacyMetric3, 'utilmetric1':self.evalUtilityMetric1, 'utilmetric2':self.evalUtilityMetric2, 'utilmetric3':self.evalUtilityMetric3}
+        return self.privacy_metrics, self.utility_metrics

@@ -12,7 +12,6 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import jaccard_score
 
 from controller import Controller
-from protectionLevel import ProtectionLevel
 from privacyMetrics import NearestNeighborDistance
 from utilityMetrics import InverseKLDivergenceMetric
 from dpgan import DPGANPlugin
@@ -25,7 +24,7 @@ def main():
     controller.handleConfigs()
 
     print("##########")
-    print("TRAINING PHASE")
+    print("PREPARATION PHASE")
     print('##########')
 
     privacy_metric = NearestNeighborDistance()
@@ -106,24 +105,30 @@ def main():
     level3 = controller.create_protection_level("Level 3", epsilon=2.0)
     level4 = controller.create_protection_level("Level 4", epsilon=1.0)
     level5 = controller.create_protection_level("Level 5", epsilon=0.5)
+    level7 = controller.create_protection_level("Level 7", privacy=(privacy_metric, 0.4), utility=(utility_metric, 0.5), range=0.1)
+    level8 = controller.create_protection_level("Level 8", privacy=(privacy_metric, 0.4), range=0.1)
 
     ## Create new baseline generators
+    # gen = DPGANPlugin(epsilon=0.5)
+    # controller.add_generator(generator=gen, protection_level=level7)
+
     controller.create_generator(protection_level=level2)
     controller.create_generator(protection_level=level3)
     controller.create_generator(protection_level=level4)
-    controller.create_generator(protection_level=level5)
-    # chameleon.add_generator(generator=DPGANPlugin(epsilon=1.0), protection_level=level3)
+    # controller.create_generator(protection_level=level8)
+
+    controller.create_by_merging(protection_level=level7)
+    
+    # chameleon.add_generator(generator=DPGANPlugin(epsilon=1.0), protection_level=level4)
 
     print("##########")
-    print("OPERATIONS PHASE")
+    print("OPERATION PHASE")
     print('##########')
 
-    ## Show protection levels available for a use case
-    controller.show_protection_levels()
-
     ## Generate synthetic data for a use case with protection level
-    syn = controller.generate_synthetic_data(size=1000, protection_level=level2)
-    syn = controller.generate_synthetic_data(size=1000, protection_level=controller.create_protection_level('Level 6', privacy_metric=privacy_metric, privacy_val=0.4, utility_metric=utility_metric, utility_val=0.4, range=0.1))
+    syn = controller.request_synthetic_data(size=1000, protection_level=level7)
+    # syn = controller.request_synthetic_data(size=1000, protection_level=controller.create_protection_level(protection_name="Level 6", epsilon=3.0))
+    # syn = controller.request_synthetic_data(size=1000, protection_level=controller.create_protection_level(protection_name="Level 7", privacy=(privacy_metric, 0.4), utility=(utility_metric, 0.4), range=0.1))
 
     print(syn)
 

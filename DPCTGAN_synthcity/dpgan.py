@@ -296,7 +296,9 @@ class DPGANPlugin(Plugin):
                 n_iter_print=self.n_iter_print,
             )
         ## Check if there is a trained generator for this protection level
-        path = self.find_models_by_protection_level(self.protection_level)
+        path = None
+        if self.protection_level is not None:
+            path = self.find_models_by_protection_level(self.protection_level)
         if path is not None:
             self.load_model(path)
             self.saved = True
@@ -316,25 +318,24 @@ class DPGANPlugin(Plugin):
         return self.dp_epsilon
     
     def save_model(self):
-        if not self.saved:
+        path = self.find_models_by_protection_level(self.protection_level)
+        if path is None:
+            print('save: ' + self.protection_level.name)
             # Save both the model state dict and the protection_level in a dictionary
             directory_path = os.path.join(self.cwd, self.directory)
             path = os.path.join(directory_path, self.protection_level.name)
             torch.save({
                 'model_state_dict': self.model.state_dict(),
-                'protection_level': self.protection_level
+                'protection_level': self.protection_level.name
             }, path)
     
     def load_model(self, path):
-        print('Using stored generator from disk.')
-        # Load the data from disk
+        print('Using stored generator from disk: ' + self.protection_level.name)
         checkpoint = torch.load(path)
         model_state_dict = checkpoint.get('model_state_dict', None)
-        protection_level = checkpoint.get('protection_level', None)
         self.model.load_state_dict(model_state_dict, strict=False)
     
     def load_protection_level(self, file_path):
-        # Load the file's content
         try:
             checkpoint = torch.load(file_path)
             protection_level = checkpoint.get('protection_level', None)
@@ -348,8 +349,8 @@ class DPGANPlugin(Plugin):
         os.makedirs(directory_path, exist_ok=True)
         for file_name in os.listdir(directory_path):
             file_path = os.path.join(directory_path, file_name)
-            protection_level = self.load_protection_level(file_path)
-            if protection_level.name == target_protection_level.name:
+            protection_level_name = self.load_protection_level(file_path)
+            if protection_level_name == target_protection_level.name:
                 return file_path
         # No model found for this protection level
         return None

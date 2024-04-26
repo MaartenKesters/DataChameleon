@@ -130,8 +130,11 @@ class MergeSynDataTechnique(GenerationTechnique):
         print('Increase privacy')
 
         ## Counter to avoid getting stuck when no improvements are made
+        counter = 0
         no_change = 0
         while no_change < 10:
+            if counter >= 10:
+                return None
             rows_added = False
             ## Merge syn data from other generators
             for level, new_generator in self.generators.items():
@@ -155,10 +158,10 @@ class MergeSynDataTechnique(GenerationTechnique):
                 ## Find rows of syn data from other level with largest distance from syn data
                 distances2 = euclidean_distances(new_data.dataframe(), syn.dataframe())
                 ranked_rows2 = np.flip(np.argsort(distances2.mean(axis=1)))
-                selected_rows = new_data.dataframe().iloc[ranked_rows2[:int((self.count * amount))]]
+                selected_rows = new_data.dataframe().iloc[ranked_rows2[:int((self.size * amount))]]
 
                 ## remove most similar rows from syn and add most dissimilar rows from new_data
-                combined_data = syn.dataframe().drop(ranked_rows[:int((self.count * amount))])
+                combined_data = syn.dataframe().drop(ranked_rows[:int((self.size * amount))])
                 combined_data = pd.concat([combined_data, selected_rows], ignore_index=True)
                 combined_data_loader = GenericDataLoader(combined_data)
                 combined_priv = self.privacy_calc.calculatePrivacy(self.private_data, combined_data_loader)
@@ -171,9 +174,11 @@ class MergeSynDataTechnique(GenerationTechnique):
                 rows_added = True
 
                 ## Test if privacy function is satisfied
-                priv_val = self.protection_level.privacy_metric.calculate(self.private_data, combined_data_loader)
-                if self.protection_level.privacy_metric.satisfied(self.protection_level.privacy_value, priv_val, self.protection_level.range):
+                priv_val = self.privacy_metric.calculate(self.private_data, combined_data_loader)
+                if self.privacy_metric.satisfied(self.privacy_value, priv_val, self.range):
                     return combined_data_loader
+                else: 
+                    counter = counter + 1
                 
                 ## Continue with next syn data from other privacy level
                 syn = combined_data_loader
@@ -267,9 +272,12 @@ class MergeSynDataTechnique(GenerationTechnique):
         syn_data = syn.dataframe()
 
         ## Counter to avoid getting stuck when no improvements are made
+        counter = 0
         no_change = 0
         freq_satisfied = False
         while not freq_satisfied:
+            if counter >= 20:
+                return None
             if no_change >= 10:
                 break
             
@@ -284,6 +292,8 @@ class MergeSynDataTechnique(GenerationTechnique):
             ## Current privacy of syn data
             cur_util = self.utility_calc.calculateUtility(self.private_data, GenericDataLoader(syn_data))
 
+            counter = counter + 1
+
             new_syn = syn_data
             for column in real_data:
                 ## merge datasets untill column frequencies are satisfied
@@ -291,17 +301,17 @@ class MergeSynDataTechnique(GenerationTechnique):
                 real_column_freqs = freqs[column][0]
                 syn_column_freqs = freqs[column][1]
                 
-                ## Calculate bin size
-                bin_size = list(real_column_freqs.keys())[1] - list(real_column_freqs.keys())[0]
-                
                 ## Check if freq is within the allowed error range
                 if self.validate_column_frequencies(real_column_freqs, syn_column_freqs):
                     continue
                 else:
                     freq_satisfied = False
 
+                ## Calculate bin size
+                bin_size = list(real_column_freqs.keys())[1] - list(real_column_freqs.keys())[0]
+
                 ## Use syn data of other privacy levels to merge with syn data of requested level
-                for level, new_generator in self.generators.items():
+                for _, new_generator in self.generators.items():
                     ## Continue with next column if this column's frequencies are satisfied
                     if self.validate_column_frequencies(real_column_freqs, syn_column_freqs):
                         break
@@ -310,8 +320,11 @@ class MergeSynDataTechnique(GenerationTechnique):
                     new_data = new_generator.generate(count = 100).dataframe()
 
                     ## Merge syn data with new data until no suitable rows can be found in new data
+                    count = 0
                     row_found = True
                     while row_found:
+                        if count >= 10:
+                            break
 
                         ## Set row_found False, if one row is found for a bin than it is set back to True
                         row_found = False
@@ -322,6 +335,7 @@ class MergeSynDataTechnique(GenerationTechnique):
 
                             ## Values in current bin for column are underrepresented
                             if syn_freq < (real_freq - self.column_frequency_error):
+
                                 ## Find row from syn data of other level with value for column in current bin
                                 index = self.find_row(new_data, column, bin, bin + bin_size)
                                 
@@ -341,6 +355,7 @@ class MergeSynDataTechnique(GenerationTechnique):
 
                             ## Values in current bin for column are overrepresented
                             elif syn_freq > (real_freq + self.column_frequency_error):
+
                                 ## Find row with value for column in current bin
                                 index = self.find_row(new_syn, column, bin, bin + bin_size)
 
@@ -362,8 +377,10 @@ class MergeSynDataTechnique(GenerationTechnique):
                                         row_found = True
 
                         freqs = self.column_frequencies(new_syn, self._n_histogram_bins)
-                        real_column_freqs = freqs[column][0]
                         syn_column_freqs = freqs[column][1]
+                        if self.validate_column_frequencies(real_column_freqs, syn_column_freqs):
+                            break
+                        count = count + 1
         
 
             ## Check if the merge improved the utility

@@ -54,6 +54,8 @@ class GenerationTechnique():
         ## Adapt synthetic data untill privacy/utility are met
         counter = 0
         while counter < 10:
+
+            new = None
             if privacy_metric is not None:
                 ## update privacy
                 ## Calculate the current privacy to use during creation
@@ -77,8 +79,10 @@ class GenerationTechnique():
                     if new is not None:
                         syn = new
                     else:
+                        counter = counter + 1
                         break
 
+            new = None
             if utility_metric is not None:
                 ## Update utility
                 ## Calculate the current utility to use during creation
@@ -102,6 +106,7 @@ class GenerationTechnique():
                     if new is not None:
                         syn = new
                     else:
+                        counter = counter + 1
                         break
 
             ## Calculate the privacy and utility, check if both values are still larger than the required value
@@ -111,12 +116,12 @@ class GenerationTechnique():
             if privacy_metric is not None:
                 priv_val = privacy_metric.calculate(self.private_data, syn)
                 print('calc priv req: ' + str(priv_val))
-                if not (privacy_metric.privacy() == 1 and val > (privacy_value - range)) or (privacy_metric.privacy() == 0 and val < (privacy_value + range)):
+                if not (privacy_metric.privacy() == 1 and priv_val > (privacy_value - range)) or (privacy_metric.privacy() == 0 and priv_val < (privacy_value + range)):
                     priv_satisfied = False
             if utility_metric is not None:
                 util_val = utility_metric.calculate(self.private_data, syn)
                 print('calc util req: ' + str(util_val))
-                if not (utility_metric.utility() == 1 and val > (utility_value - range)) or (utility_metric.utility() == 0 and val < (utility_value + range)):
+                if not (utility_metric.utility() == 1 and util_val > (utility_value - range)) or (utility_metric.utility() == 0 and util_val < (utility_value + range)):
                     util_satisfied = False
             if priv_satisfied and util_satisfied:
                 return syn
