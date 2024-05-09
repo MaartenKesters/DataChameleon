@@ -33,7 +33,10 @@ from synthcity.plugins.core.schema import Schema
 from synthcity.utils.constants import DEVICE
 
 from plugin import Plugin
-from tabular_gan import TabularGAN
+from synthcity.plugins.core.models.tabular_gan import TabularGAN
+from protectionLevel import ProtectionLevel
+
+import os
 
 
 class AdsGANPlugin(Plugin):
@@ -127,6 +130,7 @@ class AdsGANPlugin(Plugin):
     @validate_arguments(config=dict(arbitrary_types_allowed=True))
     def __init__(
         self,
+        protection_level: ProtectionLevel = None,
         n_iter: int = 10000,
         generator_n_layers_hidden: int = 2,
         generator_n_units_hidden: int = 500,
@@ -157,7 +161,6 @@ class AdsGANPlugin(Plugin):
         delta: Optional[float] = None,
         dp_max_grad_norm: float = 2,
         dp_secure_mode: bool = False,
-        # privacy level
         # early stopping
         patience: int = 5,
         patience_metric: Optional[WeightedMetrics] = None,
@@ -175,6 +178,7 @@ class AdsGANPlugin(Plugin):
             sampling_patience=sampling_patience,
             workspace=workspace,
             compress_dataset=compress_dataset,
+            protection_level=protection_level,
             **kwargs
         )
         if patience_metric is None:
@@ -222,6 +226,11 @@ class AdsGANPlugin(Plugin):
         self.dp_enabled = True
         self.dp_max_grad_norm = dp_max_grad_norm
         self.dp_secure_mode = dp_secure_mode
+
+        self.cwd = os.getcwd()
+        self.directory = os.path.join("generators", "ADSGAN")
+
+        self.saved = False
 
     @staticmethod
     def name() -> str:
@@ -307,8 +316,18 @@ class AdsGANPlugin(Plugin):
             dp_max_grad_norm=self.dp_max_grad_norm,
             dp_secure_mode=self.dp_secure_mode,
         )
-        print("---Start training model with epsilon value: " + str(self.dp_epsilon) + "---")
-        self.model.fit(X.dataframe(), cond=cond)
+        ## Check if there is a trained generator for this protection level
+        path = None
+        if self.protection_level is not None:
+            path = self.find_models_by_protection_level(self.protection_level)
+        if path is not None:
+            try:
+                self.load_model(path)
+                self.saved = True
+            except:
+                self.model.fit(X.dataframe(), cond=cond)
+        else:
+            self.model.fit(X.dataframe(), cond=cond)
 
         return self
 
@@ -322,11 +341,43 @@ class AdsGANPlugin(Plugin):
     def get_dp_epsilon(self) -> float:
         return self.dp_epsilon
     
-    def save_model(self, path):
-        torch.save(self.model.state_dict(), path)
+    def save_model(self):
+        path = self.find_models_by_protection_level(self.protection_level)
+        if path is None:
+            print('save: ' + self.protection_level.name)
+            # Save both the model state dict and the protection_level in a dictionary
+            directory_path = os.path.join(self.cwd, self.directory)
+            path = os.path.join(directory_path, self.protection_level.name)
+            torch.save({
+                'model_state_dict': self.model.state_dict(),
+                'protection_level': self.protection_level.name
+            }, path)
     
     def load_model(self, path):
-        self.model.load_state_dict(torch.load(path))
+        print('Using stored generator from disk: ' + self.protection_level.name)
+        checkpoint = torch.load(path)
+        model_state_dict = checkpoint.get('model_state_dict', None)
+        self.model.load_state_dict(model_state_dict, strict=False)
+    
+    def load_protection_level(self, file_path):
+        try:
+            checkpoint = torch.load(file_path)
+            protection_level = checkpoint.get('protection_level', None)
+            return protection_level
+        except Exception as e:
+            print(f"Failed to load or parse {file_path}: {e}")
+            return None
+    
+    def find_models_by_protection_level(self, target_protection_level):
+        directory_path = os.path.join(self.cwd, self.directory)
+        os.makedirs(directory_path, exist_ok=True)
+        for file_name in os.listdir(directory_path):
+            file_path = os.path.join(directory_path, file_name)
+            protection_level_name = self.load_protection_level(file_path)
+            if protection_level_name == target_protection_level.name:
+                return file_path
+        # No model found for this protection level
+        return None
 
 
 plugin = AdsGANPlugin

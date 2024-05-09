@@ -2,11 +2,10 @@ from abc import abstractmethod
 import pandas as pd
 
 from plugin import Plugin
-from synthcity.plugins.core.dataloader import DataLoader, GenericDataLoader
+from synthcity.plugins.core.dataloader import DataLoader
 
 from privacyCalculator import PrivacyCalculator
 from utilityCalculator import UtilityCalculator
-from protectionLevel import ProtectionLevel
 from privacyMetrics import PrivacyMetric
 from utilityMetrics import UtilityMetric
 
@@ -42,10 +41,10 @@ class GenerationTechnique():
         self.range = range
         self.size = size
 
-        ## Find the generator with the most similar protection level to use as a starting point
+        ## Find the generator with the most similar requirements to use as a starting point
         self.generator = self.find_initial_generator(generators, privacy_metric, privacy_value, utility_metric, utility_value)
         if self.generator is None:
-            ## No suitable generator exists, can not create synthetic data from other generators, need to create a new generator specific for this protection level
+            ## No suitable generator exists, can not create synthetic data from other generators, need to create a new generator specific for these requirements
             return None
 
         ## Generate synthetic data as the starting point to check the privacy/utility

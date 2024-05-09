@@ -24,7 +24,6 @@ from synthcity.plugins.core.distribution import (
     IntegerDistribution,
 )
 from synthcity.plugins.core.models.tabular_gan import TabularGAN
-# from synthcity.plugins.core.plugin import Plugin
 from synthcity.plugins.core.schema import Schema
 from synthcity.utils.constants import DEVICE
 
@@ -300,8 +299,11 @@ class DPGANPlugin(Plugin):
         if self.protection_level is not None:
             path = self.find_models_by_protection_level(self.protection_level)
         if path is not None:
-            self.load_model(path)
-            self.saved = True
+            try:
+                self.load_model(path)
+                self.saved = True
+            except:
+                self.model.fit(X.dataframe(), cond=cond)
         else:
             self.model.fit(X.dataframe(), cond=cond)
 

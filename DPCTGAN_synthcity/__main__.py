@@ -12,9 +12,11 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import jaccard_score
 
 from controller import Controller
-from privacyMetrics import NearestNeighborDistance
+from privacyMetrics import NearestNeighborDistance, DataLeakage
 from utilityMetrics import InverseKLDivergenceMetric
 from dpgan import DPGANPlugin
+from adsgan import AdsGANPlugin
+from ctganPlugin import CTGANPlugin
 
 from ucimlrepo import fetch_ucirepo
 
@@ -27,53 +29,33 @@ def main():
     print("PREPARATION PHASE")
     print('##########')
 
-    privacy_metric = NearestNeighborDistance()
-    utility_metric = InverseKLDivergenceMetric()
-
     ## Get the dataset
     cwd = os.getcwd()
 
-    # correct_file = False
-    # while not correct_file:
-    #     file_name = input('Enter a file name: ')
-    #     path = cwd + '/data/' + file_name
-    #     print(path)
-
-    #     if os.path.exists(cwd + '/data/' + file_name):
-    #         print('The file exists')
-    #         data = pd.read_csv(path)
-    #         print(data.head())
-    #         correct_file = True
-    #     else:
-    #         print('The specified file does NOT exist, make sure to include it in the data folder')
-
-
-    ## Get kag_risk_factors_cervical_cancer.csv dataset
+    ## Dataset 1: kag_risk_factors_cervical_cancer.csv dataset
     # csv = pd.read_csv(cwd + '/data/kag_risk_factors_cervical_cancer.csv')
-    # data = csv.sample(n=5000,replace="False")
-    
-    ## Preprocess the data
+    # data = csv.sample(n=10000,replace="False")
     # data = data.drop(columns=['STDs: Time since first diagnosis', 'STDs: Time since last diagnosis'])
     # data.drop(data[data.apply(lambda x: '?' in x.values, axis=1)].index, inplace=True)
     # data[['Number of sexual partners', 'First sexual intercourse', 'Num of pregnancies', 'Smokes', 'Hormonal Contraceptives', 'Hormonal Contraceptives (years)', 'IUD', 'IUD (years)', 'STDs', 'STDs (number)', 'STDs:condylomatosis','STDs:cervical condylomatosis','STDs:vaginal condylomatosis','STDs:vulvo-perineal condylomatosis','STDs:syphilis','STDs:pelvic inflammatory disease','STDs:genital herpes','STDs:molluscum contagiosum','STDs:AIDS','STDs:HIV','STDs:Hepatitis B','STDs:HPV']] = data[['Number of sexual partners', 'First sexual intercourse', 'Num of pregnancies', 'Smokes', 'Hormonal Contraceptives', 'Hormonal Contraceptives (years)', 'IUD', 'IUD (years)', 'STDs', 'STDs (number)', 'STDs:condylomatosis','STDs:cervical condylomatosis','STDs:vaginal condylomatosis','STDs:vulvo-perineal condylomatosis','STDs:syphilis','STDs:pelvic inflammatory disease','STDs:genital herpes','STDs:molluscum contagiosum','STDs:AIDS','STDs:HIV','STDs:Hepatitis B','STDs:HPV']].astype(float)
     # data = data.sample(n=500)
 
-    ## Get a update dataset, data that is new when generators are already trained
-    # update_data = csv.sample(n=500,replace="False")
-    # update_data = update_data.drop(columns=['STDs: Time since first diagnosis', 'STDs: Time since last diagnosis'])
-    # update_data = update_data.replace('?', '-1')
-    # update_data[['Number of sexual partners', 'First sexual intercourse', 'Num of pregnancies', 'Smokes', 'Hormonal Contraceptives', 'Hormonal Contraceptives (years)', 'IUD', 'IUD (years)', 'STDs', 'STDs (number)', 'STDs:condylomatosis','STDs:cervical condylomatosis','STDs:vaginal condylomatosis','STDs:vulvo-perineal condylomatosis','STDs:syphilis','STDs:pelvic inflammatory disease','STDs:genital herpes','STDs:molluscum contagiosum','STDs:AIDS','STDs:HIV','STDs:Hepatitis B','STDs:HPV']] = update_data[['Number of sexual partners', 'First sexual intercourse', 'Num of pregnancies', 'Smokes', 'Hormonal Contraceptives', 'Hormonal Contraceptives (years)', 'IUD', 'IUD (years)', 'STDs', 'STDs (number)', 'STDs:condylomatosis','STDs:cervical condylomatosis','STDs:vaginal condylomatosis','STDs:vulvo-perineal condylomatosis','STDs:syphilis','STDs:pelvic inflammatory disease','STDs:genital herpes','STDs:molluscum contagiosum','STDs:AIDS','STDs:HIV','STDs:Hepatitis B','STDs:HPV']].astype(float)
-    
-
-    ## Get the adult dataset
+    ## Dataset 2: adult dataset
     # adult = fetch_ucirepo(id=2)
     # X = adult.data.features 
     # data = X.sample(n=1000)
     # data.drop(data[data.apply(lambda x: '?' in x.values, axis=1)].index, inplace=True)
 
-    ## Get the iris dataset
-    data, y = load_iris(as_frame=True, return_X_y=True)
-    data, test = train_test_split(data, test_size=0.2)
+    ## Dataset 3: iris dataset
+    # data, y = load_iris(as_frame=True, return_X_y=True)
+    # data, test = train_test_split(data, test_size=0.2)
+
+    ## Dataset 4: Online retail
+    # fetch dataset 
+    online_retail = fetch_ucirepo(id=352) 
+    X = online_retail.data.features
+    X = X.dropna()
+    data = X.sample(n=1000)
 
     print(data)
 
@@ -94,40 +76,43 @@ def main():
 
     ## Create data loader
     controller.load_private_data(data, sensitive_features=sensitive_features)
-    # chameleon.encode_data(data_loader.dataframe())
 
     ## Show available metrics
     controller.show_metrics()
 
-    ## Create new protection levels for different use cases
-    # level1 = chameleon.create_protection_level("Level 1", privacy_metric=privacy_metric, privacy_val=0.4, utility_metric=utility_metric, utility_val=0.4, range=0.1)
-    level2 = controller.create_protection_level("Level 2", epsilon=3.0)
-    level3 = controller.create_protection_level("Level 3", epsilon=2.0)
-    level4 = controller.create_protection_level("Level 4", epsilon=1.0)
-    level5 = controller.create_protection_level("Level 5", epsilon=0.5)
-    level7 = controller.create_protection_level("Level 7", privacy=(privacy_metric, 0.4), utility=(utility_metric, 0.5), range=0.1)
-    level8 = controller.create_protection_level("Level 8", privacy=(privacy_metric, 0.4), range=0.1)
+    ## Take existing metric
+    privacy_metric = NearestNeighborDistance()
+    utility_metric = InverseKLDivergenceMetric()
 
     ## Create new baseline generators
-    # gen = DPGANPlugin(epsilon=0.5)
-    # controller.add_generator(generator=gen, protection_level=level7)
-
-    controller.create_generator(protection_level=level2)
-    controller.create_generator(protection_level=level3)
-    controller.create_generator(protection_level=level4)
-    # controller.create_generator(protection_level=level8)
-
-    controller.create_by_merging(protection_level=level7)
-    
-    # chameleon.add_generator(generator=DPGANPlugin(epsilon=1.0), protection_level=level4)
+    ## Option 1
+    gen1 = DPGANPlugin(epsilon=0.5)
+    gen2 = DPGANPlugin(epsilon=1)
+    gen3 = DPGANPlugin(epsilon=4)
+    #gen4 = CTGANPlugin(discrete_columns=['Description', 'Country'])
+    controller.add_generator(generator=gen1, protection_name="Level 1")
+    controller.add_generator(generator=gen2, protection_name="Level 2")
+    controller.add_generator(generator=gen3, protection_name="Level 3")
+    #controller.add_generator(generator=gen4, protection_name="Level 4")
+    ## Option 2
+    # controller.create_generator(protection_name="Level 4", privacy=(privacy_metric, 0.5), utility=(utility_metric, 0.5), range=0.1)
+    # controller.create_generator(protection_name="Level 5", privacy=(privacy_metric, 0.6), utility=(utility_metric, 0.6), range=0.1)
+    ## Option 3
+    # controller.create_by_merging(protection_name="Level 6", privacy=(privacy_metric, 0.5), utility=(utility_metric, 0.5), range=0.1)
 
     print("##########")
     print("OPERATION PHASE")
     print('##########')
 
-    ## Generate synthetic data for a use case with protection level
-    syn = controller.request_synthetic_data(size=1000, protection_level=level7)
-    # syn = controller.request_synthetic_data(size=1000, protection_level=controller.create_protection_level(protection_name="Level 6", epsilon=3.0))
+    ## Show protection levels (Note: this should not be shown to the data consumers as this might reveal too much information about the system.)
+    controller.show_protection_levels()
+
+    ## Add custom metric that is not available in the system
+    
+
+    ## Generate synthetic data for a use case with specific privacy/utility requirements
+    # syn = controller.request_synthetic_data(size=1000, protection_name="Level 10", privacy=(privacy_metric, 0.4), utility=(utility_metric, 0.4), range=0.1)
+    syn = controller.request_synthetic_data(size=1000, protection_name="custom", privacy=(privacy_metric, 0.2), utility=(utility_metric, 0.34), range=0.1)
     # syn = controller.request_synthetic_data(size=1000, protection_level=controller.create_protection_level(protection_name="Level 7", privacy=(privacy_metric, 0.4), utility=(utility_metric, 0.4), range=0.1))
 
     print(syn)

@@ -25,6 +25,12 @@ class Evaluation():
         self.utilityMetrics = []
         for metric in util:
             self.utilityMetrics.append(getattr(utilityMetrics, utilityMetrics.CLASS_NAME_FILE[metric])())
+
+    def add_privacy_metric(self, metric: PrivacyMetric):
+        self.privacyMetrics.append(metric)
+
+    def add_utility_metric(self, metric: UtilityMetric):
+        self.utilityMetrics.append(metric)
     
     def getPrivacyMetrics(self) -> List[PrivacyMetric]:
         return self.privacyMetrics
@@ -46,8 +52,8 @@ class Evaluation():
             info = info + "\n"
         return info
 
-    def generateEvalutionInfo(self, real: DataLoader, syn: DataLoader, generator: Plugin, protection_level: ProtectionLevel):
-        info = "---Evaluation info: " + generator.name() + ", " + protection_level.name + "--- \n"
+    def generateEvalutionInfo(self, real: DataLoader, syn: DataLoader, generator: Plugin, protection_name: str):
+        info = "---Evaluation info: " + generator.name() + ", " + protection_name + "--- \n"
         info = info + "### Privacy metrics:\n"
         for priv in self.privacyMetrics:
             info = info + "Metric: " + priv.name() + "\n"
@@ -62,7 +68,7 @@ class Evaluation():
             info = info + "\n"
         directory_path = os.path.join(self.cwd, self.directory)
         os.makedirs(directory_path, exist_ok=True)
-        file_name = generator.name() + "_" + protection_level.name + "_info.txt"
+        file_name = generator.name() + "_" + protection_name + "_info.txt"
         full_file_path = os.path.join(directory_path, file_name)
         with open(full_file_path, "w") as file:
             file.write(info)

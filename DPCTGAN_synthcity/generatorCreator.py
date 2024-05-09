@@ -1,13 +1,13 @@
 from plugin import Plugin
-from protectionLevel import ProtectionLevel
 from privacyCalculator import PrivacyCalculator
 from utilityCalculator import UtilityCalculator
 from privacyMetrics import PrivacyMetric
 from utilityMetrics import UtilityMetric
+from protectionLevel import ProtectionLevel
 
 from synthcity.plugins.core.dataloader import DataLoader
 
-from typing import Optional
+from typing import Optional, Tuple
 import random 
 
 class GeneratorCreator():
@@ -18,22 +18,16 @@ class GeneratorCreator():
         self.privacy_calc = privacy_calc
         self.utility_calc = utility_calc
 
-    def create_generator(self, generators, protection_level: ProtectionLevel, privacy_metric: Optional[PrivacyMetric] = None, privacy_value: Optional[float] = None, utility_metric: Optional[UtilityMetric] = None, utility_value: Optional[float] = None, range: Optional[float] = None) -> Plugin:
+    def create_generator(self, generators, protection_name: str, privacy: Optional[Tuple[PrivacyMetric, float]] = None, utility: Optional[Tuple[UtilityMetric, float]] = None, range: float = None) -> Plugin:
         self.generators = generators
-        self.protection_level = protection_level
-        self.privacy_metric = privacy_metric
-        self.privacy_value = privacy_value
-        self.utility_metric = utility_metric
-        self.utility_value = utility_value
-        self.range = range
-
-        ## if requirement is specified by an epsilon value, we can easily create the right generator
-        if protection_level.epsilon is not None:
-            self.generator = self.plugin_class(epsilon=protection_level.epsilon, protection_level=protection_level)
-            self.generator.fit(self.private_data)
-            return self.generator
+        self.protection_name = protection_name
+        privacy_metric = privacy[0]
+        privacy_value = privacy[1]
+        utility_metric = utility[0]
+        utility_value = utility[1]
+        range = range
         
-        ## Find the generator with the most similar protection level to use as a starting point
+        ## Find the generator with the most similar requirements to use as a starting point
         self.generator = self.find_initial_generator(generators, privacy_metric, privacy_value, utility_metric, utility_value)
         if self.generator is None:
             ## Create new starting point if no other generators exist
@@ -51,9 +45,8 @@ class GeneratorCreator():
         counter = 0
 
         while not satisfied:
-            ## After 5 rounds of reinitialization, stop the process
-            if counter >= 5:
-                print('Automatically creating a generator for this protection level did not work. try to add it manually.')
+            ## After 3 rounds of reinitialization, stop the process
+            if counter >= 3:
                 return None 
 
             ## Both privacy and utility requirment given
@@ -72,6 +65,7 @@ class GeneratorCreator():
                     util_satisfied = True
 
                 if priv_satisfied and util_satisfied:
+                    print('Requirements satisfied for automatically creating a generator.')
                     satisfied = True
                     continue 
 
@@ -100,6 +94,7 @@ class GeneratorCreator():
                     else:
                         ## increase utility == increase epsilon
                         counter = counter + 1
+                        ## reinit generator
                         self.generator = self.init_generator()
                         self.generator.fit(self.private_data)
                         syn = self.generator.generate(count=self.size)
@@ -218,12 +213,6 @@ class GeneratorCreator():
                 
         return self.generator
 
-    def init_generator(self) -> Plugin:
-        print("Init generator")
-        n = random.randint(1,10)
-        gen = self.plugin_class(epsilon=n, protection_level=self.protection_level)
-        return gen
-
     def increase_privacy(self, amount: float) -> DataLoader:
         print('Increase privacy')
         ## set current generator eps as high bound
@@ -336,9 +325,14 @@ class GeneratorCreator():
             ## Decreasing the utility did not work
             return None
     
+    def init_generator(self) -> Plugin:
+        print("Init generator")
+        n = random.randint(1,10)
+        gen = self.plugin_class(epsilon=n, protection_level=ProtectionLevel(self.protection_name))
+        return gen
         
     def set_new_eps(self, eps: float) -> Plugin:
-        new_generator = self.plugin_class(epsilon=eps, protection_level=self.protection_level)
+        new_generator = self.plugin_class(epsilon=eps)
         return new_generator
 
     def find_initial_generator(self, generators, privacy_metric: PrivacyMetric, privacy_value: float, utility_metric: UtilityMetric, utility_value: float) -> Plugin:

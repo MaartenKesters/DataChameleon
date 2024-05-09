@@ -179,10 +179,6 @@ class Plugin(Serializable, metaclass=ABCMeta):
     
     ## Abstract methods that each plugin should implement
     @abstractmethod
-    def get_dp_epsilon(self) -> float:
-        ...
-
-    @abstractmethod
     def save_model(self):
         ...
     
