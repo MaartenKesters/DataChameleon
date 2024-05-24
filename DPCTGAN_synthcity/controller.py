@@ -1,33 +1,27 @@
 ## Synthcity imports
-# from synthcity.plugins.core.plugin import Plugin
 from synthcity.plugins.core.dataloader import DataLoader, GenericDataLoader
 
-from protectionLevel import ProtectionLevel
-from plugin import Plugin
-from generatorCreator import GeneratorCreator
-
-import os
 import pandas as pd
-import numpy as np
 from sklearn.model_selection import train_test_split
 from importlib import import_module
-import pickle as pickle
-from typing import Optional, Union, Tuple
+from typing import Optional, Tuple
 import threading
+from timeit import default_timer as timer
 
+from protectionLevel import ProtectionLevel
+from generative_model_classes.plugin import Plugin
+from generatorCreator import GeneratorCreator
 from configurationParser import ConfigHandler
-from privacyMetrics import PrivacyMetric
-from utilityMetrics import UtilityMetric
-from privacyCalculator import PrivacyCalculator
-from utilityCalculator import UtilityCalculator
+from metrics.privacyMetrics import PrivacyMetric
+from metrics.utilityMetrics import UtilityMetric
+from metrics.privacyCalculator import PrivacyCalculator
+from metrics.utilityCalculator import UtilityCalculator
 from evaluation import Evaluation
-
-from dataEncoderDecoder import DataEncoderDecoder
 
 
 class Controller():
     """
-    Main class for the data chameleon.
+    Main class for the Data Chameleon.
     
     """
 
@@ -36,7 +30,7 @@ class Controller():
         self.protection_levels = {}
         self.syn_data = {}
 
-        self.validation_size = 10000
+        self.validation_size = 1000
         self.global_privacy_metric = PrivacyMetric()
         self.global_utility_metric = UtilityMetric()
 
@@ -48,53 +42,53 @@ class Controller():
         self.utilityCalculator = UtilityCalculator()
         self.evaluation = Evaluation()
 
-        self.handleConfigs()
+        self.handle_configs()
 
     ########## CONTROLLER SETUP ########### 
         
-    def handleConfigs(self):
-        self.configparser.parseConfigs()
-        self.handleGenerator()
-        self.handleGenerationTechniqueMetrics()
-        self.handleGenerationTechnique()
-        self.handleEncoding()
-        self.handleEvaluationMetrics()
+    def handle_configs(self):
+        self.configparser.parse_configs()
+        self.handle_generator()
+        self.handle_generation_technique_metrics()
+        self.handle_generation_technique()
+        self.handle_encoding()
+        self.handle_evaluation_metrics()
 
-    def handleGenerator(self):
+    def handle_generator(self):
         ## Get plugin class generator
-        module = import_module(self.configparser.getPluginModule())
-        className = self.configparser.getPluginClass()
+        module = import_module('generative_model_classes.' + self.configparser.get_plugin_module())
+        className = self.configparser.get_plugin_class()
         if module == 'none':
             raise ValueError("Specify the module name and class name of the plugin in the config file.")
         else:
             self.pluginModule = module
             self.pluginClass = getattr(module, className)
     
-    def handleGenerationTechniqueMetrics(self):
+    def handle_generation_technique_metrics(self):
         ## Get privacy metrics with weights
-        privacyMetrics = self.configparser.getPrivacyMetrics()
+        privacyMetrics = self.configparser.get_privacy_metrics()
         self.privacyCalculator.setMetrics(privacyMetrics)
         ## Get utility metrics with weights
-        utilityMetrics = self.configparser.getUtilityMetrics()
+        utilityMetrics = self.configparser.get_utility_metrics()
         self.utilityCalculator.setMetrics(utilityMetrics)
     
-    def handleGenerationTechnique(self):
+    def handle_generation_technique(self):
         ## Get the generation class
-        module = import_module(self.configparser.getGenerationModule())
-        className = self.configparser.getGenerationClass()
+        module = import_module(self.configparser.get_generation_module())
+        className = self.configparser.get_generation_class()
         if module == 'none':
             self.generationTechniqueModule = None
         else:
             self.generationTechniqueModule = module
             self.generationTechniqueInstance = getattr(module, className)(self.privacyCalculator, self.utilityCalculator)
 
-    def handleEncoding(self):
+    def handle_encoding(self):
         ## Get information if we need to encode the data or not
-        self.encode = self.configparser.getEncoding()
+        self.encode = self.configparser.get_encoding()
 
-    def handleEvaluationMetrics(self):
+    def handle_evaluation_metrics(self):
         ## Get privacy and utility metrics
-        privacyMetrics, utilityMetrics = self.configparser.getEvaluationMetrics()
+        privacyMetrics, utilityMetrics = self.configparser.get_evaluation_metrics()
         self.evaluation.setMetrics(privacyMetrics, utilityMetrics)
 
     ########## DATA LOADING ########### 
@@ -118,17 +112,12 @@ class Controller():
     def encode_data(self, data: DataLoader):
         ## Use encoder of Dataloader class
         self.private_data, self.private_data_encoders = data.encode()
-
-        print('### encoded')
-        print(self.private_data)
     
     def decode_data(self, data: DataLoader):
         ## Use decoder of Dataloader class
         if self.private_data_encoders is not None:
             decoded = data.decode(self.private_data_encoders)
 
-        print('### decoded')
-        print(decoded)
         return decoded
     
     ########## METRICS ###########   
@@ -159,7 +148,7 @@ class Controller():
 
     ## Show available metrics for evaluation
     def show_metrics(self):
-        print(self.evaluation.showMetrics())
+        print(self.evaluation.show_metrics())
 
     ########## PROTECTION LEVELS ###########    
     
@@ -200,13 +189,23 @@ class Controller():
 
         ## validate generator
         validation_data = self.generate(generator, self.validation_size)
-        self.evaluation.generateEvalutionInfo(self.private_data, validation_data, generator, protection_name)
+        self.evaluation.generate_evalution_info(self.private_data, validation_data, generator, protection_name)
 
         ## evaluate generator with different metrics
-        for priv in self.evaluation.getPrivacyMetrics():
-            protection_level.add_privacy((priv, priv.calculate(self.private_data, validation_data)))
-        for util in self.evaluation.getUtilityMetrics():
-            protection_level.add_utility((util, util.calculate(self.private_data, validation_data)))
+        for priv in self.evaluation.get_privacy_metrics():
+            ## take average of evaluating 5 times
+            value = 0
+            for i in range(0, 5):
+                value = value + priv.calculate(self.private_data, validation_data)
+            privacy = value / 5
+            protection_level.add_privacy((priv, privacy))
+        for util in self.evaluation.get_utility_metrics():
+            ## take average of evaluating 5 times
+            value = 0
+            for i in range(0, 5):
+                value = value + util.calculate(self.private_data, validation_data)
+            utility = value / 5
+            protection_level.add_utility((util, utility))
 
         ## add generator to repository and link to protection level
         generator.set_protection_level(protection_level)
@@ -224,6 +223,32 @@ class Controller():
         
         ## check if there already exists a generator for this protection level
         if protection_name in self.protection_levels.keys():
+            ## check if the existing generator meets the requirements
+            generator = self.generators[protection_name]
+            x = 0
+            while x < 5:
+                x = x + 1
+                validation_data = self.generate(generator, self.validation_size)
+                priv_satisfied = False
+                util_satisfied = False
+                ## Calculate the privacy with given metric for requirement
+                if privacy is not None:
+                    priv_val = privacy[0].calculate(self.private_data, validation_data)
+                    print('calc priv req: ' + str(priv_val))
+                    if privacy[0].satisfied(privacy[1], priv_val, range):
+                        priv_satisfied = True
+                else:
+                    priv_satisfied = True
+                ## Calculate the utility with given metric for requirement
+                if utility is not None:
+                    util_val = utility[0].calculate(self.private_data, validation_data)
+                    print('calc util req: ' + str(util_val))
+                    if utility[0].satisfied(utility[1], util_val, range):
+                        util_satisfied = True
+                else:
+                    util_satisfied = True
+                if priv_satisfied and util_satisfied:
+                    return
             raise ValueError("The system already provides service for this protection level.")
         
         ## Create a generator that generates synthetic data that meets the requirements
@@ -234,14 +259,24 @@ class Controller():
         if generator is not None:
             ## validate generator
             validation_data = self.generate(generator, self.validation_size)
-            self.evaluation.generateEvalutionInfo(self.private_data, validation_data, generator, protection_name)
+            self.evaluation.generate_evalution_info(self.private_data, validation_data, generator, protection_name)
 
             ## evaluate generator with different metrics
             protection_level = self.create_protection_level(protection_name=protection_name)
-            for priv in self.evaluation.getPrivacyMetrics():
-                protection_level.add_privacy((priv, priv.calculate(self.private_data, validation_data)))
-            for util in self.evaluation.getUtilityMetrics():
-                protection_level.add_utility((util, util.calculate(self.private_data, validation_data)))
+            for priv in self.evaluation.get_privacy_metrics():
+                ## take average of evaluating 5 times
+                value = 0
+                for i in range(0, 5):
+                    value = value + priv.calculate(self.private_data, validation_data)
+                privacy = value / 5
+                protection_level.add_privacy((priv, privacy))
+            for util in self.evaluation.get_utility_metrics():
+                ## take average of evaluating 5 times
+                value = 0
+                for i in range(0, 5):
+                    value = value + util.calculate(self.private_data, validation_data)
+                utility = value / 5
+                protection_level.add_utility((util, utility))
             
             ## add generator to repository and link to protection level
             generator.set_protection_level(protection_level)
@@ -273,9 +308,9 @@ class Controller():
             if synthetic_data is not None:
                 ## evaluate generator with different metrics
                 protection_level = self.create_protection_level(protection_name=protection_name)
-                for priv in self.evaluation.getPrivacyMetrics():
+                for priv in self.evaluation.get_privacy_metrics():
                     protection_level.add_privacy((priv, priv.calculate(self.private_data, synthetic_data)))
-                for util in self.evaluation.getUtilityMetrics():
+                for util in self.evaluation.get_utility_metrics():
                     protection_level.add_utility((util, util.calculate(self.private_data, synthetic_data)))
             
                 ## add synthetic data to repository and link to protection level
@@ -284,7 +319,7 @@ class Controller():
 
             ## system was not able to automatically merge generators
             else:
-                print('Merging existing generators for these requirements did not work. try to add a new generator.')
+                raise ValueError('Merging existing generators for these requirements did not work. try to add a new generator.')
     
     ## remove generator from system
     def remove_generator(self, protection_name: str):
@@ -307,7 +342,7 @@ class Controller():
                 raise RuntimeError("Something went wrong, try adding the generators again")
         return synthetic_data
 
-    ## Handle incoming request for synthetic data
+    ## Request handler: Handle incoming request for synthetic data
     def request_synthetic_data(self, size: int, protection_name: str, privacy: Optional[Tuple[PrivacyMetric, float]] = None, utility: Optional[Tuple[UtilityMetric, float]] = None, range: float = None) -> pd.DataFrame:
         synthetic_data = None
 
@@ -324,18 +359,22 @@ class Controller():
                 if len(syn.dataframe()) == size:
                     ## Evaluate synthetic data with right size with metrics from requirements
                     if self.evaluate_synthetic_data(syn, privacy, utility, range):
-                        print("using previous generated data for these requirements")
+                        # print("using previous generated data for these requirements")
                         synthetic_data = syn
             ## Check if there is a generator trained that meets these requirements
             elif level.name in self.generators.keys(): 
                 generator = self.generators[level.name]
-                syn = self.generate(generator, size)
                 ## Evaluate synthetic data with right size with metrics from requirements
-                if self.evaluate_synthetic_data(syn, privacy, utility, range):
-                    print("using trained generator for this protection level")
-                    synthetic_data = syn
-                    ## Store synthetic data such that the data can be delivered faster on the next request
-                    self.syn_data[level.name] = synthetic_data
+                x = 0
+                while x < 10:
+                    x = x + 1
+                    syn = self.generate(generator, size)
+                    if self.evaluate_synthetic_data(syn, privacy, utility, range):
+                        # print("using trained generator for this protection level: " + generator.get_protection_level().name)
+                        synthetic_data = syn
+                        ## Store synthetic data such that the data can be delivered faster on the next request
+                        self.syn_data[level.name] = synthetic_data
+                        break
 
         if synthetic_data is None:
             ## no trained generator exists and no cached synthetic data is available that meets these requirements, go to preparation phase
@@ -348,7 +387,6 @@ class Controller():
         if self.encode:
             synthetic_data = self.decode_data(synthetic_data)
         
-        print("---Generated synthetic data---")
         return synthetic_data
     
     ## Match requirements to protection level
@@ -393,9 +431,6 @@ class Controller():
     def evaluate_synthetic_data(self, syn: DataLoader, privacy: Optional[Tuple[PrivacyMetric, float]] = None, utility: Optional[Tuple[UtilityMetric, float]] = None, range: float = None) -> bool:
         priv_satisfied = False
         util_satisfied = False
-        print('Evaluate before release')
-        print(privacy[0].calculate(self.private_data, syn))
-        print(utility[0].calculate(self.private_data, syn))
         if privacy is not None:
             if abs(privacy[1] - privacy[0].calculate(self.private_data, syn)) <= range:
                 priv_satisfied = True
@@ -415,14 +450,14 @@ class Controller():
     def handle_new_requirements(self, protection_name: str, privacy: Optional[Tuple[PrivacyMetric, float]] = None, utility: Optional[Tuple[UtilityMetric, float]] = None, range: float = None):
         ## Let the system create a new generator (preparation phase)
         try:
-            self.create_generator(protection_name, privacy, utility, range)
-            ## System was able to create generator, notify data consumer that system is ready to handle its request
+            self.create_by_merging(protection_name, privacy, utility, range)
+            ## System was able to create synthetic data, notify data consumer that system is ready to handle its request
             print('The system is now ready to handle a request for protection level: ' + protection_name)
         except ValueError as e:
-            ## System was not able to create generator, try merging existing generators to meet the requirements
+            ## System was not able to merge synthetic data, try creating a new generator to meet the requirements
             try:
-                self.create_by_merging(protection_name, privacy, utility, range)
-                ## System was able to create synthetic data, notify data consumer that system is ready to handle its request
+                self.create_generator(protection_name, privacy, utility, range)
+                ## System was able to create generator, notify data consumer that system is ready to handle its request
                 print('The system is now ready to handle a request for protection level: ' + protection_name)
             except ValueError as e:
-                print('The system was unable to automatically create a generator or synthetic data for these requirements. Add a generator manually.')
+                print('The system was unable to automatically create a generator or merge synthetic data for these requirements. Add a generator manually.')

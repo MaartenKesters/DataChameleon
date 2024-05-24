@@ -9,18 +9,18 @@ class ConfigHandler():
         self.config = configparser.ConfigParser()
         self.config.read('config.ini')
 
-    def parseConfigs(self):
-        self.parseGenerator()
-        self.parseGenerationMetrics()
-        self.parseGenerationTechnique()
-        self.parseEncoding()
-        self.parseEvaluationMetrics()
+    def parse_configs(self):
+        self.parse_generator()
+        self.parse_generation_metrics()
+        self.parse_generation_technique()
+        self.parse_encoding()
+        self.parse_evaluation_metrics()
 
-    def parseGenerator(self):
+    def parse_generator(self):
         self.pluginModule = self.config.get('Plugin', 'module')
         self.pluginClass = self.config.get('Plugin', 'className')
     
-    def parseGenerationMetrics(self):
+    def parse_generation_metrics(self):
         self.privacyMetric1 = self.config.get('Metrics', 'privacymetric1')
         self.privacyMetric1Weight = self.config.get('Metrics', 'privacymetric1weight')
         self.privacyMetric2 = self.config.get('Metrics', 'privacymetric2')
@@ -34,42 +34,41 @@ class ConfigHandler():
         self.utilityMetric3 = self.config.get('Metrics', 'utilitymetric3')
         self.utilityMetric3Weight = self.config.get('Metrics', 'utilitymetric3weight')
 
-    def parseGenerationTechnique(self):
+    def parse_generation_technique(self):
         self.generationModule = self.config.get('Generation', 'module')
         self.generationClass = self.config.get('Generation', 'className')
 
-    def parseEncoding(self):
+    def parse_encoding(self):
         encode = self.config.get('Encoding', 'encode')
         if encode == '1':
             self.encode = True
         else:
             self.encode = False
 
-    def parseEvaluationMetrics(self):
-        # Get privacy and utility metrics from the config file
+    def parse_evaluation_metrics(self):
         self.privacy_metrics = self.config['Evaluation']['privacymetrics'].split(', ')
         self.utility_metrics = self.config['Evaluation']['utilitymetrics'].split(', ')
     
-    def getPluginModule(self):
+    def get_plugin_module(self):
         return self.pluginModule
     
-    def getPluginClass(self):
+    def get_plugin_class(self):
         return self.pluginClass
     
-    def getPrivacyMetrics(self):
+    def get_privacy_metrics(self):
         return {'metric1':self.privacyMetric1, 'weight1':self.privacyMetric1Weight, 'metric2':self.privacyMetric2, 'weight2':self.privacyMetric2Weight, 'metric3':self.privacyMetric3, 'weight3':self.privacyMetric3Weight}
     
-    def getUtilityMetrics(self):
+    def get_utility_metrics(self):
         return {'metric1':self.utilityMetric1, 'weight1':self.utilityMetric1Weight, 'metric2':self.utilityMetric2, 'weight2':self.utilityMetric2Weight, 'metric3':self.utilityMetric3, 'weight3':self.utilityMetric3Weight}
     
-    def getGenerationModule(self):
+    def get_generation_module(self):
         return self.generationModule
     
-    def getGenerationClass(self):
+    def get_generation_class(self):
         return self.generationClass
     
-    def getEncoding(self):
+    def get_encoding(self):
         return self.encode
     
-    def getEvaluationMetrics(self):
+    def get_evaluation_metrics(self):
         return self.privacy_metrics, self.utility_metrics

@@ -1,7 +1,7 @@
 from typing import Optional, List, Tuple
 
-from privacyMetrics import PrivacyMetric
-from utilityMetrics import UtilityMetric
+from metrics.privacyMetrics import PrivacyMetric
+from metrics.utilityMetrics import UtilityMetric
 
 class ProtectionLevel():
     def __init__(self, protection_name: str,
@@ -38,37 +38,3 @@ class ProtectionLevel():
             for utility_metric, utility_value in self.utility:
                 result = result + "- Utility metric: " + str(utility_metric.name()) + " with value: " + str(utility_value) + "\n"
         return result
-    
-    # def __eq__(self, other) -> bool:
-    #     priv_eq = False
-    #     util_eq = False
-
-    #     # Check privacy metrics
-    #     for privacy_metric, privacy_value in self.privacy:
-    #         for other_privacy_metric, other_privacy_value in other.privacy:
-    #             if privacy_metric.name() == other_privacy_metric.name():
-    #                 if abs(privacy_value - other_privacy_value) <= self._range:
-    #                     priv_eq = True
-
-    #     # Check utility metrics
-    #     for utility_metric, utility_value in self._utility:
-    #         for other_utility_metric, other_utility_value in other.utility:
-    #             if utility_metric.name() == other_utility_metric.name():
-    #                 if abs(utility_value - other_utility_value) <= self._range:
-    #                     util_eq = True
-        
-    #     ## Both privacy and utility has to be the same
-    #     if not self.privacy and not self.utility:
-    #         if priv_eq and util_eq:
-    #             return True
-    #     ## Only privacy has to be the same
-    #     if not self.privacy:
-    #         if priv_eq:
-    #             return True
-    #     ## Only utility has to be the same
-    #     if not self.utility:
-    #         if util_eq:
-    #             return True
-
-    #     # If no check passes, return False
-    #     return False

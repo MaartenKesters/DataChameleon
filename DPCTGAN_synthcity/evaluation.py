@@ -1,8 +1,8 @@
-import privacyMetrics
-import utilityMetrics
-from privacyMetrics import PrivacyMetric
-from utilityMetrics import UtilityMetric
-from plugin import Plugin
+import metrics.privacyMetrics
+import metrics.utilityMetrics
+from metrics.privacyMetrics import PrivacyMetric
+from metrics.utilityMetrics import UtilityMetric
+from generative_model_classes.plugin import Plugin
 from protectionLevel import ProtectionLevel
 
 from synthcity.plugins.core.dataloader import DataLoader
@@ -20,11 +20,11 @@ class Evaluation():
     def setMetrics(self, priv: List[PrivacyMetric], util: List[UtilityMetric]):
         self.privacyMetrics = []
         for metric in priv:
-            self.privacyMetrics.append(getattr(privacyMetrics, privacyMetrics.CLASS_NAME_FILE[metric])())
+            self.privacyMetrics.append(getattr(metrics.privacyMetrics, metrics.privacyMetrics.CLASS_NAME_FILE[metric])())
         
         self.utilityMetrics = []
         for metric in util:
-            self.utilityMetrics.append(getattr(utilityMetrics, utilityMetrics.CLASS_NAME_FILE[metric])())
+            self.utilityMetrics.append(getattr(metrics.utilityMetrics, metrics.utilityMetrics.CLASS_NAME_FILE[metric])())
 
     def add_privacy_metric(self, metric: PrivacyMetric):
         self.privacyMetrics.append(metric)
@@ -32,13 +32,13 @@ class Evaluation():
     def add_utility_metric(self, metric: UtilityMetric):
         self.utilityMetrics.append(metric)
     
-    def getPrivacyMetrics(self) -> List[PrivacyMetric]:
+    def get_privacy_metrics(self) -> List[PrivacyMetric]:
         return self.privacyMetrics
     
-    def getUtilityMetrics(self) -> List[UtilityMetric]:
+    def get_utility_metrics(self) -> List[UtilityMetric]:
         return self.utilityMetrics
     
-    def showMetrics(self) -> str:
+    def show_metrics(self) -> str:
         info = "---Metrics info--- \n"
         info = info + "### Privacy metrics:\n"
         for priv in self.privacyMetrics:
@@ -52,7 +52,7 @@ class Evaluation():
             info = info + "\n"
         return info
 
-    def generateEvalutionInfo(self, real: DataLoader, syn: DataLoader, generator: Plugin, protection_name: str):
+    def generate_evalution_info(self, real: DataLoader, syn: DataLoader, generator: Plugin, protection_name: str):
         info = "---Evaluation info: " + generator.name() + ", " + protection_name + "--- \n"
         info = info + "### Privacy metrics:\n"
         for priv in self.privacyMetrics:

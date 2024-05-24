@@ -1,13 +1,13 @@
 from abc import abstractmethod
 import pandas as pd
 
-from plugin import Plugin
+from generative_model_classes.plugin import Plugin
 from synthcity.plugins.core.dataloader import DataLoader
 
-from privacyCalculator import PrivacyCalculator
-from utilityCalculator import UtilityCalculator
-from privacyMetrics import PrivacyMetric
-from utilityMetrics import UtilityMetric
+from metrics.privacyCalculator import PrivacyCalculator
+from metrics.utilityCalculator import UtilityCalculator
+from metrics.privacyMetrics import PrivacyMetric
+from metrics.utilityMetrics import UtilityMetric
 
 class GenerationTechnique():
     """
@@ -64,7 +64,6 @@ class GenerationTechnique():
                 while not priv_satisfied:
                     ## Calculate the privacy with given metric for requirement
                     val = privacy_metric.calculate(self.private_data, syn)
-                    print('calc req: ' + str(val))
 
                     if (privacy_metric.privacy() == 1 and val > (privacy_value - range)) or (privacy_metric.privacy() == 0 and val < (privacy_value + range)):
                         priv_satisfied = True
@@ -91,7 +90,6 @@ class GenerationTechnique():
                 while not util_satisfied:
                     ## Calculate the utility
                     val = utility_metric.calculate(self.private_data, syn)
-                    print('calc req: ' + str(val))
 
                     if (utility_metric.utility() == 1 and val > (utility_value - range)) or (utility_metric.utility() == 0 and val < (utility_value + range)):
                         util_satisfied = True
@@ -109,18 +107,15 @@ class GenerationTechnique():
                         break
 
             ## Calculate the privacy and utility, check if both values are still larger than the required value
-            print('final check')
             priv_satisfied = True
             util_satisfied = True
             if privacy_metric is not None:
                 priv_val = privacy_metric.calculate(self.private_data, syn)
-                print('calc priv req: ' + str(priv_val))
-                if not (privacy_metric.privacy() == 1 and priv_val > (privacy_value - range)) or (privacy_metric.privacy() == 0 and priv_val < (privacy_value + range)):
+                if not ((privacy_metric.privacy() == 1 and priv_val > (privacy_value - range)) or (privacy_metric.privacy() == 0 and priv_val < (privacy_value + range))):
                     priv_satisfied = False
             if utility_metric is not None:
                 util_val = utility_metric.calculate(self.private_data, syn)
-                print('calc util req: ' + str(util_val))
-                if not (utility_metric.utility() == 1 and util_val > (utility_value - range)) or (utility_metric.utility() == 0 and util_val < (utility_value + range)):
+                if not ((utility_metric.utility() == 1 and util_val > (utility_value - range)) or (utility_metric.utility() == 0 and util_val < (utility_value + range))):
                     util_satisfied = False
             if priv_satisfied and util_satisfied:
                 return syn
@@ -146,8 +141,14 @@ class GenerationTechnique():
         difference = 0
         for level, generator in generators.items():
             syn = generator.generate(count=self.size)
-            priv_diff = abs(privacy_metric.calculate(self.private_data, syn) - privacy_value)
-            util_diff = abs(utility_metric.calculate(self.private_data, syn) - utility_value)
+            if privacy_metric is not None:
+                priv_diff = abs(privacy_metric.calculate(self.private_data, syn) - privacy_value)
+            else:
+                priv_diff = 0
+            if utility_metric is not None:
+                util_diff = abs(utility_metric.calculate(self.private_data, syn) - utility_value)
+            else:
+                util_diff = 0
             diff = (priv_diff + util_diff) / 2
             if closest_generator is None:
                 closest_generator = generator
