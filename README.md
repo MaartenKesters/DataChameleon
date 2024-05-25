@@ -23,7 +23,7 @@ Data Chameleon is a self-adaptive synthetic data generation system designed to f
 ## Installation
 1. Clone the repository:
    ```sh
-   git clone https://github.com/MaartenKesters/datachameleon.git
+   git clone https://github.com/MaartenKesters/DataChameleon.git
    ```
 2. Navigate to the project directory:
     ```sh
