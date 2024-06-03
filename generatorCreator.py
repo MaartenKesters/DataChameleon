@@ -346,7 +346,7 @@ class GeneratorCreator():
                 diff = (priv_diff + util_diff) / 2
             elif privacy_metric is not None:
                 diff = abs(privacy_metric.calculate(self.private_data, syn) - privacy_value)
-            elif util_diff is not None:
+            elif utility_metric is not None:
                 diff = abs(utility_metric.calculate(self.private_data, syn) - utility_value)
             if closest_generator is None:
                 closest_generator = generator

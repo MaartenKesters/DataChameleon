@@ -2,14 +2,14 @@
 ### Privacy metrics:
 Metric: nearestneighbordistance
 Information: Computes the <reduction>(distance) from the real data to the closest neighbor in the synthetic data
-Values: 0.40722728125278024 and 0.3764475471432364
+Values: 0.2791107397102997 and 0.28030780380900827
 
 Metric: identifiabilityscore
 Information: Returns the re-identification score on the real dataset from the synthetic dataset.
-Values: 0.135 and 0.30875
+Values: 0.235 and 0.5775
 
 ### Utility metrics:
 Metric: inversekldivergence
 Information: Returns the average inverse of the Kullback–Leibler Divergence metric.
-Value: 0.37550183975479656 and 0.3713295427731455
+Value: 0.7082730771283897 and 0.7324403126117892
 

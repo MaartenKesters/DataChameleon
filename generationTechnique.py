@@ -52,7 +52,7 @@ class GenerationTechnique():
         
         ## Adapt synthetic data untill privacy/utility are met
         counter = 0
-        while counter < 10:
+        while counter < 3:
 
             new = None
             if privacy_metric is not None:

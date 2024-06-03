@@ -1,0 +1,15 @@
+---Evaluation info: ctgansdv, extended--- 
+### Privacy metrics:
+Metric: nearestneighbordistance
+Information: Computes the <reduction>(distance) from the real data to the closest neighbor in the synthetic data
+Values: 0.13408884332906312 and 0.08883936822311332
+
+Metric: identifiabilityscore
+Information: Returns the re-identification score on the real dataset from the synthetic dataset.
+Values: 0.39125 and 0.7575
+
+### Utility metrics:
+Metric: inversekldivergence
+Information: Returns the average inverse of the Kullback–Leibler Divergence metric.
+Value: 0.8649266393782504 and 0.8689096510020983
+

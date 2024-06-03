@@ -29,8 +29,8 @@ class MergeSynDataTechnique(GenerationTechnique):
         ## Counter to avoid getting stuck when no improvements are made
         counter = 0
         no_change = 0
-        while no_change < 10:
-            if counter >= 10:
+        while no_change < 3:
+            if counter >= 3:
                 return None
             rows_added = False
             ## Merge syn data from other generators
@@ -100,9 +100,9 @@ class MergeSynDataTechnique(GenerationTechnique):
         no_change = 0
         freq_satisfied = False
         while not freq_satisfied:
-            if counter >= 20:
+            if counter >= 3:
                 return None
-            if no_change >= 10:
+            if no_change >= 3:
                 break
             
             ## Test if utility function is satisfied before all frequencies are calculated

@@ -54,18 +54,18 @@ You can add baseline generators to the system in the following way:
     ```
 - Create baseline generators
     ```sh
-    DPGAN_generator = DPGANPlugin(epsilon=0.5)
+    DPGAN_generator = DPGANPlugin(epsilon=8)
     controller.add_generator(generator=DPGAN_generator, protection_name="fraud detection")
 
-    controller.create_generator(protection_name="personalized marketing", privacy=(identify_metric, 0.2), utility=(kl_metric, 0.6), range=0.05)
+    controller.create_generator(protection_name="personalized marketing", privacy=(identify_metric, 0.15), utility=(kl_metric, 0.6), range=0.05)
 
-    controller.create_by_merging(protection_name="trend analysis", utility=(kl_metric, 0.8), range=0.05)
+    controller.create_by_merging(protection_name="trend analysis", privacy=(identify_metric, 0.05), range=0.05)
     ```
 
 You can request synthetic data with specific privacy/utility requirements in the following way:
 - Create a request with the required size, privacy, and utility of the data
     ```sh
-    syn = controller.request_synthetic_data(size=1000, protection_name="personalized marketing", privacy=(identify_metric, 0.2), utility=(kl_metric, 0.6), range=0.05)
+    syn = controller.request_synthetic_data(size=1000, protection_name="personalized marketing", privacy=(identify_metric, 0.15), utility=(kl_metric, 0.6), range=0.05)
     ```
 
 ## Authors

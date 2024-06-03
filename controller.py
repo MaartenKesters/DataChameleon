@@ -411,11 +411,16 @@ class Controller():
             thread_preparation.start()
             return None
         
+        for priv in self.evaluation.get_privacy_metrics():
+            print(priv.name() + str(priv.calculate(self.private_data, synthetic_data)))
+        for util in self.evaluation.get_utility_metrics():
+            print(util.name() + str(util.calculate(self.private_data, synthetic_data)))
+        
         ## Decode syn data
         if self.encode:
             synthetic_data = self.decode_data(synthetic_data)
         
-        return synthetic_data
+        return synthetic_data.dataframe()
     
     ## Match requirements to protection level
     def find_protection_levels(self, privacy: Optional[Tuple[PrivacyMetric, float]] = None, utility: Optional[Tuple[UtilityMetric, float]] = None, range: float = None) -> List[ProtectionLevel]:

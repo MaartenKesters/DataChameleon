@@ -1,4 +1,3 @@
-
 """
 References: 
 - Jinsung Yoon, Lydia N. Drumright, Mihaela van der Schaar,
@@ -36,7 +35,6 @@ class AdsGANPlugin(Plugin):
         :parts: 1
 
     AdsGAN plugin - Anonymization through Data Synthesis using Generative Adversarial Networks.
-
 
     Args:
         generator_n_layers_hidden: int
