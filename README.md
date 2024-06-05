@@ -1,6 +1,6 @@
 
-# Data Chameleon: A self-adaptive privacy-enhancement system for structured data.
-Data Chameleon is a self-adaptive synthetic data generation system designed to facilitate data sharing in collaborative environments. It dynamically adjusts its privacy and utility measures to meet the unique requirements of different use cases, minimizing privacy risks while optimizing data utility.
+# Data Chameleon: A Self-Adaptive Privacy-Enhancement System for Structured Data.
+Data Chameleon is a self-adaptive synthetic data generation system designed to facilitate data sharing in collaborative environments. It dynamically adjusts to meet the unique privacy/utility requirements of different use cases, minimizing privacy risks while optimizing data utility.
 
 ## Table of Contents
 - [Features](#features)
