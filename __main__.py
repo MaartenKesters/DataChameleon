@@ -115,7 +115,7 @@ def main():
     #### Validation ####
     validator = SystemValidator()
     # validator.validate_R1(controller)
-    validator.validate_R2(controller)
+    # validator.validate_R2(controller)
     # validator.validate_R3(controller)
 
 
